@@ -87,6 +87,7 @@ function (di::DataIntegral)(evals::Int, pool::Symbol = :none, atol = 1e-20, rtol
 end
 
 """
+    di = DataIntegral()
     di(evals::Union{AbstractRange,Int}, pool::AbstractWorkerPool, atol = 1e-20, rtol = 1e-20)::DataIntegral
 """
 function (di::DataIntegral)(evals::Union{AbstractRange,Int}, pool::AbstractWorkerPool, atol = 1e-20, rtol = 1e-20)::DataIntegral
