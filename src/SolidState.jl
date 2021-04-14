@@ -25,7 +25,6 @@ module SolidState
 
     # Position and Velocity Operator Information
     export KinematicOperators, KinematicDensity
-    #include("opt/kinematic_operators.jl")
     include("opt/model/kinematic_ops.jl")
 
     #Domain Information
