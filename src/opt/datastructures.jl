@@ -2,7 +2,7 @@
 include("DataTypes/DataChart.jl")
 include("DataTypes/DataMap.jl")
 include("DataTypes/DataSection.jl")
-include("DataTypes/DataIntegral.jl")
+# include("DataTypes/DataIntegral.jl")
 
 # Importing and Exporting DataStructures
 """

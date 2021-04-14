@@ -1,4 +1,3 @@
-<!-- 
 # SolidState Documentation
 
 This documentation explains the usage and underlying algorithms invovled in the SolidState package. You know?
@@ -21,4 +20,4 @@ Modules = [SolidState]
 ## Index
 
 ```@index
-``` -->
+```
