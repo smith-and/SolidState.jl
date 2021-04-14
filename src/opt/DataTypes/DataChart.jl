@@ -27,10 +27,10 @@ function TensorChart(Indices::AbstractArray, Priors::AbstractArray, Base::Abstra
 end
 
 ### Application Specific Wrappings for TensorCharts
+export DataChart
 """
    abstract type DataChart end
 """
-export DataChart
 abstract type DataChart end
 
 """
