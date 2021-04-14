@@ -64,10 +64,10 @@ function (di::DataIntegral)(evals::Union{AbstractRange,Vector{Int64}}, pool::Sym
     di
 end
 
-"""
-    (di::DataIntegral)(evals::Int, pool::Symbol = :none, atol = 1e-20, rtol = 1e-20)::DataIntegral
-
-"""
+# """
+#     (di::DataIntegral)(evals::Int, pool::Symbol = :none, atol = 1e-20, rtol = 1e-20)::DataIntegral
+#
+# """
 function (di::DataIntegral)(evals::Int, pool::Symbol = :none, atol = 1e-20, rtol = 1e-20)::DataIntegral
     #integration line
     stats = @timed(integrate(di.dm, di.a, di.b, pool; evals = evals, rtol=rtol, atol=atol, ranges=di.chartinfo, cachedirr=di.cachedir))
