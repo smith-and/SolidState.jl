@@ -14,27 +14,26 @@ struct DataIntegral{DM <: DataMap, DA <: AbstractArray, AV <: AbstractVector, IA
     cachedir::String
 end
 
-# #Construction from map
-# """
-#     DataIntegral(dm::DM, a::AV=[0.0,0.0], b::AV=[1.0,1.0];cachedir::String="none", ranges::ChartInfo=ChartInfo())::DataIntegral where {AV <: AbstractVector, DM <: DataMap, PT <: Union{AbstractWorkerPool,Symbol}}
-# """
-# function DataIntegral(dm::DM, a::AV=[0.0,0.0], b::AV=[1.0,1.0];cachedir::String="none", ranges::ChartInfo=ChartInfo())::DataIntegral where {AV <: AbstractVector, DM <: DataMap, PT <: Union{AbstractWorkerPool,Symbol}}
-#     DataIntegral(dm,a,b,typeof(1.0)[],typeof(1.0)[],typeof(1)[],typeof(1)[],typeof(getfield(dm.chart,1).data)[],ranges,cachedir)
-# end
-#
-# #Construction with map description
-# """
-#     DataIntegral(datatype::Type{T} where T <: DataChart,asd::Dict{String,Any},hd::HamiltonianDensity,indices,priors,base; a::AV=[0.0,0.0], b::AV =[1.0,1.0])::DataIntegral  where {AV <: AbstractVector, DM <: DataMap}
-# """
-# function DataIntegral(datatype::Type{T} where T <: DataChart,asd::Dict{String,Any},hd::HamiltonianDensity,indices,priors,base; a::AV=[0.0,0.0], b::AV =[1.0,1.0])::DataIntegral  where {AV <: AbstractVector, DM <: DataMap}
-#     dm  = DataMap(datatype,asd,hd,indices,priors,base);
-#     DataIntegral(dm,a,b, ranges=ChartInfo(datatype,indices,priors,base,(0,0)),cachedir=pwd())
-# end
-#
-#
-# #Construction with cached objects & description
+#Construction from map
+"""
+    DataIntegral(dm::DM, a::AV=[0.0,0.0], b::AV=[1.0,1.0];cachedir::String="none", ranges::ChartInfo=ChartInfo())::DataIntegral where {AV <: AbstractVector, DM <: DataMap, PT <: Union{AbstractWorkerPool,Symbol}}
+"""
+function DataIntegral(dm::DM, a::AV=[0.0,0.0], b::AV=[1.0,1.0];cachedir::String="none", ranges::ChartInfo=ChartInfo())::DataIntegral where {AV <: AbstractVector, DM <: DataMap, PT <: Union{AbstractWorkerPool,Symbol}}
+    DataIntegral(dm,a,b,typeof(1.0)[],typeof(1.0)[],typeof(1)[],typeof(1)[],typeof(getfield(dm.chart,1).data)[],ranges,cachedir)
+end
+
+#Construction with map description
+"""
+    DataIntegral(datatype::Type{T} where T <: DataChart,asd::Dict{String,Any},hd::HamiltonianDensity,indices,priors,base; a::AV=[0.0,0.0], b::AV =[1.0,1.0])::DataIntegral  where {AV <: AbstractVector, DM <: DataMap}
+"""
+function DataIntegral(datatype::Type{T} where T <: DataChart,asd::Dict{String,Any},hd::HamiltonianDensity,indices,priors,base; a::AV=[0.0,0.0], b::AV =[1.0,1.0])::DataIntegral  where {AV <: AbstractVector, DM <: DataMap}
+    dm  = DataMap(datatype,asd,hd,indices,priors,base);
+    DataIntegral(dm,a,b, ranges=ChartInfo(datatype,indices,priors,base,(0,0)),cachedir=pwd())
+end
+
 # """
 #     DataIntegral(datatype::Type{T} where T <: DataChart,indices,priors, base, cachedir, mn; a::AV=[0.0,0.0], b::AV =[1.0,1.0])::DataIntegral  where {AV <: AbstractVector}
+#Construction with cached objects & description
 # """
 # function DataIntegral(datatype::Type{T} where T <: DataChart,indices,priors, base, cachedir, mn; a::AV=[0.0,0.0], b::AV =[1.0,1.0])::DataIntegral  where {AV <: AbstractVector}
 #     asd = BSON.load("$cachedir/asd-$(mn[1])-$(mn[2]).bson")
