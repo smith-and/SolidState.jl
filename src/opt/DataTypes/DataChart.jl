@@ -1,6 +1,7 @@
-#A generic structure to hold Tensor Data
 """
    TensorChart{IndexT <: AbstractArray, PriorT <: AbstractArray, BaseT <: AbstractArray, DataT <: AbstractArray}
+
+A generic structure to hold Tensor Data
 """
 struct TensorChart{IndexT <: AbstractArray, PriorT <: AbstractArray, BaseT <: AbstractArray, DataT <: AbstractArray}
    indices::IndexT
