@@ -56,35 +56,35 @@ end
 #Pool Routines
 include(".integrate.jl")
 
-# function (di::DataIntegral)(evals::Union{AbstractRange,Vector{Int64}}, pool::Symbol = :none, atol = 1e-20, rtol = 1e-20)
-#     for eval ∈ evals
-#         di(eval, pool, atol, rtol);
-#         nothing
-#     end
-#     di
-# end
-#
-# """
-#     (di::DataIntegral)(evals::Int, pool::Symbol = :none, atol = 1e-20, rtol = 1e-20)::DataIntegral
-#
-# """
-# function (di::DataIntegral)(evals::Int, pool::Symbol = :none, atol = 1e-20, rtol = 1e-20)::DataIntegral
-#     #integration line
-#     stats = @timed(integrate(di.dm, di.a, di.b, pool; evals = evals, rtol=rtol, atol=atol, ranges=di.chartinfo, cachedirr=di.cachedir))
-#
-#     #Store integration informaiton
-#     push!(di.evals, evals)
-#     push!(di.err,   stats.value)
-#     push!(di.times, stats.time/3600)
-#     push!(di.bytes, stats.bytes)
-#     push!(di.data,  copy(getfield(di.dm.chart,1).data))
-#
-#     #print to stdout
-#     #println("did $(fieldnames(di.dm.chart|>typeof)[1]) integral w/ $(evals) pts in $(round(stats.time,sigdigits=3))s or $(round(stats.time/3600,sigdigits=3)) SUs");flush(stdout)
-#     #flush(stdout)
-#
-#     di
-# end
+function (di::DataIntegral)(evals::Union{AbstractRange,Vector{Int64}}, pool::Symbol = :none, atol = 1e-20, rtol = 1e-20)
+    for eval ∈ evals
+        di(eval, pool, atol, rtol);
+        nothing
+    end
+    di
+end
+
+"""
+    (di::DataIntegral)(evals::Int, pool::Symbol = :none, atol = 1e-20, rtol = 1e-20)::DataIntegral
+
+"""
+function (di::DataIntegral)(evals::Int, pool::Symbol = :none, atol = 1e-20, rtol = 1e-20)::DataIntegral
+    #integration line
+    stats = @timed(integrate(di.dm, di.a, di.b, pool; evals = evals, rtol=rtol, atol=atol, ranges=di.chartinfo, cachedirr=di.cachedir))
+
+    #Store integration informaiton
+    push!(di.evals, evals)
+    push!(di.err,   stats.value)
+    push!(di.times, stats.time/3600)
+    push!(di.bytes, stats.bytes)
+    push!(di.data,  copy(getfield(di.dm.chart,1).data))
+
+    #print to stdout
+    #println("did $(fieldnames(di.dm.chart|>typeof)[1]) integral w/ $(evals) pts in $(round(stats.time,sigdigits=3))s or $(round(stats.time/3600,sigdigits=3)) SUs");flush(stdout)
+    #flush(stdout)
+
+    di
+end
 #
 # """
 #     (di::DataIntegral)(evals::Union{AbstractRange,Int}, pool::AbstractWorkerPool, atol = 1e-20, rtol = 1e-20)::DataIntegral
