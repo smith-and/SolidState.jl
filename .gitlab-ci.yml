@@ -16,11 +16,15 @@
         c, t = get_summary(process_folder())
         using Printf
         @printf "Test coverage %.2f%%\n" 100c / t'
-julia:
+julia-build:
     stage: test
     image: julia
     extends:
       - .script
+julia-coverage:
+    stage: test
+    image: julia
+    extends:
       - .coverage
 pages:
   image: julia
