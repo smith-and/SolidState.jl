@@ -34,7 +34,7 @@ module SolidState
     #Data Charts & Maps & Sections
     export TensorChart, DataMap, DataIntegral, DataSection
     export data_export, data_import
-    # include("opt/datastructures.jl")
+    include("opt/datastructures.jl")
     export logstep
 
     """
