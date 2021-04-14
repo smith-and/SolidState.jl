@@ -1,5 +1,5 @@
 using Documenter, SolidState
-include("$(ENV["HOME"])/.julia/config/startup.jl")
+# include("$(ENV["HOME"])/.julia/config/startup.jl")
 # makedocs(sitename="SolidState")
 
 DocMeta.setdocmeta!(SolidState, :DocTestSetup, :(using SolidState); recursive=true)
