@@ -52,10 +52,10 @@ function DataIntegral(ci::ChartInfo, cachedir::String; a::AbstractVector=[0.0,0.
     DataIntegral(dm,a,b; ranges=ci,cachedir)
 end
 
-#
-# #Pool Routines
-# include(".integrate.jl")
-#
+
+#Pool Routines
+include(".integrate.jl")
+
 # function (di::DataIntegral)(evals::Union{AbstractRange,Vector{Int64}}, pool::Symbol = :none, atol = 1e-20, rtol = 1e-20)
 #     for eval ∈ evals
 #         di(eval, pool, atol, rtol);
