@@ -1,0 +1,18 @@
+name = "SolidState"
+uuid = "2c09af30-f0d4-40de-b169-b86295c0c66a"
+authors = ["smitha "]
+version = "0.1.0"
+
+[deps]
+BSON = "fbb218c0-5317-5bc6-957e-2ee96dd4b1f0"
+CubicSplines = "9c784101-8907-5a6d-9be6-98f00873c89b"
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
+HCubature = "19dc6840-f33b-545b-b366-655c7e3ffd49"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+OrderedCollections = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
+PackageCompiler = "9b87118b-4619-50d2-8e1e-99f35a4d4d9d"
+Roots = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
+SharedArrays = "1a1011a3-84de-559e-8e89-a11a2f7dc383"
+SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
