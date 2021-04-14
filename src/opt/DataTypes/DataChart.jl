@@ -30,6 +30,7 @@ end
 """
    abstract type DataChart end
 """
+export DataChart
 abstract type DataChart end
 
 """
