@@ -13,7 +13,7 @@ makedocs(;
     sitename="SolidState",
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https://smith-and.gitlab.io/SolidState",
+        # canonical="https://smith-and.gitlab.io/SolidState",
         assets=String[],
     ),
     pages=[
