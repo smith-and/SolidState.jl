@@ -92,8 +92,11 @@ end
 
 end
 
-@inline function cartan_frame_transform(h_bundle::HamiltonianOperators, aux_matrix::AbstractArray{Complex{AbstractFloat},2})
-    cartan_frame(eigen!(Hermitian(h_bundle.h)), h_bundle, aux_matrix)
+@inline function eigen_transform(h_bundle::HamiltonianOperators)
+    map(h_bundle.E,eigen!(Hermitian(h_bundle.h))) do (x,y)
+        x .= y
+    end
+    cartan_frame(h_bundle.E, h_bundle, h_bundle.aux_matrix)
 end
 
 @inline function cartan_transform(h_bundle::HamiltonianOperators)
