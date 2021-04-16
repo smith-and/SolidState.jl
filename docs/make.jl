@@ -1,4 +1,4 @@
-using Documenter, SolidState
+using Documenter, SolidState, Git
 # include("$(ENV["HOME"])/.julia/config/startup.jl")
 # makedocs(sitename="SolidState")
 
