@@ -9,11 +9,11 @@ println("starting with docs!")
 makedocs(;
     modules=[SolidState],
     authors="Andrew Smith <asmith.nic@gmail.com> and contributors",
-    # repo="https://gitlab.com/smith-and/SolidState",
+    repo="https://gitlab.com/solidstateapps/SolidState",
     sitename="SolidState",
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
-        # canonical="https://smith-and.gitlab.io/SolidState",
+        canonical="https://solidstateapps.gitlab.io/SolidState",
         assets=String[],
     ),
     pages=[
