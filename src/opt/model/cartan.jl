@@ -92,14 +92,14 @@ end
 
 end
 
-@inline function eigen_transform(h_bundle::HamiltonianOperators)
-    map(h_bundle.E,eigen!(Hermitian(h_bundle.h))) do (x,y)
-        x .= y
-    end
-    cartan_frame(h_bundle.E, h_bundle, h_bundle.aux_matrix)
-end
-
 @inline function cartan_transform(h_bundle::HamiltonianOperators)
-    cartan!(h_bundle.h, h_bundle.E, h_bundle.eig_aux)
-    cartan_frame(h_bundle.E, h_bundle, h_bundle.aux_matrix)
+    try
+        cartan!(h_bundle.h, h_bundle.E, h_bundle.eig_aux)
+        cartan_frame(h_bundle.E, h_bundle, h_bundle.aux_matrix)
+    catch
+        map(h_bundle.E,eigen!(Hermitian(h_bundle.h))) do (x,y)
+            x .= y
+        end
+        cartan_frame(h_bundle.E, h_bundle, h_bundle.aux_matrix)
+    end
 end
