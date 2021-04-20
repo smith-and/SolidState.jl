@@ -97,9 +97,11 @@ end
         cartan!(h_bundle.h, h_bundle.E, h_bundle.eig_aux)
         cartan_frame(h_bundle.E, h_bundle, h_bundle.aux_matrix)
     catch
-        map(h_bundle.E,eigen!(Hermitian(h_bundle.h))) do (x,y)
-            x .= y
+        let E = eigen!(Hermitian(h_bundle.h))
+            h_bundle.E.values .= E.values
+            h_bundle.E.vectors .= E.vectors
         end
+
         cartan_frame(h_bundle.E, h_bundle, h_bundle.aux_matrix)
     end
 end
