@@ -1,12 +1,42 @@
+
+### We define some ways to collect the priors
+
+function collect_priors(priors::Vector{Tuple{Symbol,F,F,Int64}})
+    (x->[x...]).(collect(Iterators.product([range(p[2],p[3],length=p[4]) for p∈priors]...))[:])
+end
+
+function collect_priors(priors::Array{NTuple{N,Float64},N} where N)
+    ((x->[x...]).(priors))[:]
+end
+
+function collect_priors(priors::Vector{LinRange{F}})
+    (x->[x...]).(collect(Iterators.product(priors...))[:])
+end
+
+function collect_priors(priors::Vector{Vector{F}})
+    priors
+end
+
+### Now We define some operators
+
+abstract type OperatorSet end
+abstract type OperatorDensity end
+
+@generated function (od::OperatorDensity)(hd::HamiltonianDensity) #::Tuple{KinematicOperators{AbstractFloat},HamiltonianOperators}
+    name = fieldname(od,1)
+    quote
+        $(Symbol(name,:(_ops)))(od.$name, hd.h_ops, od.priors, hd.h_ops.E.values, od.aux_real)
+        nothing
+    end
+end
+
+
 #data for set of "kinematic" obsevarble operators which are used to compute response functions
-struct KinematicOperators{AR <: AbstractArray, AC <: AbstractArray}
+struct KinematicOperators{AR <: AbstractArray, AC <: AbstractArray} <: OperatorSet
     df::Vector{AR}
     dω::AR
     Δ::Array{AC,1}
     re::Array{AC,1}
-    rire::Array{AC,2}
-    pz::AC
-    pz_0::AC
 end
 
 #Constructor for the Kinematic Operator Bundle
@@ -17,9 +47,6 @@ function KinematicOperators(dim::Integer, priorsN::Integer,d=2; style::Symbol=:n
             SharedArray(zeros(Float64,(dim,dim))),
             [SharedArray(zeros(ComplexF64,(dim,dim))) for _=1:d],
             [SharedArray(zeros(ComplexF64,(dim,dim))) for _=1:d],
-            [SharedArray(zeros(ComplexF64,(dim,dim))) for _=1:d, _=1:d],
-            SharedArray(zeros(ComplexF64,(dim,dim))),
-            SharedArray(zeros(ComplexF64,(dim,dim)))
         )
     elseif style == :static
         return KinematicOperators(
@@ -27,9 +54,6 @@ function KinematicOperators(dim::Integer, priorsN::Integer,d=2; style::Symbol=:n
             SMatrix{dim,dim}(zeros(Float64,(dim,dim))),
             [SMatrix{dim,dim}(zeros(ComplexF64,(dim,dim))) for _=1:d],
             [SMatrix{dim,dim}(zeros(ComplexF64,(dim,dim))) for _=1:d],
-            [SMatrix{dim,dim}(zeros(ComplexF64,(dim,dim))) for _=1:d, _=1:d],
-            SMatrix{dim,dim}(zeros(ComplexF64,(dim,dim))),
-            SMatrix{dim,dim}(zeros(ComplexF64,(dim,dim)))
         )
     else
         return KinematicOperators(
@@ -37,38 +61,8 @@ function KinematicOperators(dim::Integer, priorsN::Integer,d=2; style::Symbol=:n
             (zeros(Float64,(dim,dim))),
             [(zeros(ComplexF64,(dim,dim))) for _=1:d],
             [(zeros(ComplexF64,(dim,dim))) for _=1:d],
-            [(zeros(ComplexF64,(dim,dim))) for _=1:d, _=1:d],
-            (zeros(ComplexF64,(dim,dim))),
-            (zeros(ComplexF64,(dim,dim)))
         )
     end
-end
-
-struct KinematicDensity{H_Type <: HamiltonianDensity, K_Type <: KinematicOperators, AUXA <: AbstractArray, PA <: AbstractArray}
-    hd::H_Type
-    k_m::K_Type
-    aux_real::AUXA
-    priors::PA
-end
-
-# Constructor with density
-function KinematicDensity(hd::H where H <: HamiltonianDensity{Int64,F}, priors::Vector{Tuple{Symbol,F,F,Int64}}; style::Symbol=:normal) where F <: Number
-    inputs = ( hd, KinematicOperators(size(hd.h_ops.h,1),prod(getindex.(priors,4)); style=style), zeros(F, size(hd.h_ops.h)),(x->[x...]).(collect(Iterators.product([range(p[2],p[3],length=p[4]) for p∈priors]...))[:]) )
-    KinematicDensity{typeof.(inputs)...}(inputs...)
-end
-
-function KinematicDensity(hd::H where H <: HamiltonianDensity{Int64,F}, priors::Vector{LinRange{F}}; style::Symbol=:normal) where F <: AbstractFloat
-    inputs = (hd, KinematicOperators(size(hd.h_ops.h,1),prod(length.(priors)); style=style), zeros(F, size(hd.h_ops.h)),(x->[x...]).(collect(Iterators.product(priors...))[:]))
-    KinematicDensity{typeof.(inputs)...}(inputs...)
-end
-
-function KinematicDensity(hd::H where H <: HamiltonianDensity{Int64,F}, priors::Vector{Vector{F}}; style::Symbol=:normal) where F <: AbstractFloat
-    inputs = (hd, KinematicOperators(size(hd.h_ops.h,1),length(priors); style=style), zeros(typeof(priors[1][1]), size(hd.h_ops.h)),priors)
-    KinematicDensity{typeof.(inputs)...}(inputs...)
-end
-
-function KinematicDensity(hd::HD where HD <: HamiltonianDensity, priors::Array{NTuple{N,Float64},N} where N; style::Symbol=:normal)
-    KinematicDensity(hd, KinematicOperators(size(hd.h_ops.h,1),length(priors); style=style), zeros(typeof(0.0),size(hd.h_ops.h)),((x->[x...]).(priors))[:])
 end
 
 
@@ -77,61 +71,19 @@ function indicator(x::F)::F where F <: AbstractFloat
     x > 0.0 ? 0.0 : 1.0
 end
 
-@inline function fermi(ϵ::F, T::F, μ::Number=0.0)::F where F <: AbstractFloat
+@inline function fermi_bose(ϵ::F, T::F, μ::Number=0.0, ζ = 1)::F where F <: AbstractFloat
     z=0.0
 
     if T==0.0
         z = (ϵ - μ) > 0.0 ? 0.0 : 1.0;
     else
-        z = 1.0/(1.0+exp((1.0/(8.617*(1e-5)*T))*(ϵ - μ)));
+        z = 1.0/(1.0+ζ*exp((1.0/(8.617*(1e-5)*T))*(ϵ - μ)));
     end
 
     return z
 end
 
-
-@inline function rire_add(n::Int64, m::Int64, p::Int64, new_val::Complex{F}, va::AbstractArray{Complex{F},2}, vb::AbstractArray{Complex{F},2}, ra::AbstractArray{Complex{F},2}, rb::AbstractArray{Complex{F},2} ) where F <: AbstractFloat
-    if !(p==n||p==m)
-    @inbounds @fastmath    new_val +=(va[n,p]*rb[p,m]-rb[n,p]*va[p,m])
-    end
-end
-
-@inline function km_rire(rireab::AbstractArray{Complex{F},2}, wab::AbstractArray{Complex{F},2}, va::AbstractArray{Complex{F},2}, vb::AbstractArray{Complex{F},2}, ra::AbstractArray{Complex{F},2}, rb::AbstractArray{Complex{F},2}, Δb::AbstractArray{Complex{F},2}, Δa::AbstractArray{Complex{F},2}, inv_dω::AbstractArray{F,2})::Nothing where F <: AbstractFloat
-    dim = 0;
-    dim = size(inv_dω,1);
-    @inbounds @fastmath for m ∈ 1:dim
-        @inbounds @fastmath for n ∈ 1:dim
-            new_rire = Complex(0.0)
-            @inbounds @fastmath  for p ∈ 1:dim
-                rire_add(n,m,p,new_rire,va,vb,ra,rb)
-            end
-            rireab[n,m] = new_rire
-        end
-    end
-
-    rireab .+= ( ( (ra .* Δb) .+ (rb .* Δa) ) .+ (im .* wab) )
-    rireab .*= (-1 .* inv_dω ) ;
-
-    nothing
-end
-
-@inline function kinematic_ops(km::KinematicOperators, cfr::HamiltonianOperators, priors::Vector{Vector{F}}, inv_dω::AbstractArray{F,2}) where F <: AbstractFloat
-
-    for a ∈ 1:length(cfr.v)
-        @inbounds km.re[a]   .= -im .* (inv_dω) .* (cfr.v[a]);
-    end
-
-    for a ∈ 1:length(cfr.v)
-        for b ∈ 1:length(cfr.v)
-            @inbounds km_rire(km.rire[a,b], cfr.a[a,b], cfr.v[a], cfr.v[b], km.re[a], km.re[b], km.Δ[a], km.Δ[b], inv_dω)
-        end
-    end
-
-    nothing
-end
-
-
-@inline function kinematic_ops(km::KinematicOperators, cfr::HamiltonianOperators, priors::Vector{Vector{F}}, ϵs::Vector{F}, r_aux::AbstractArray{F,2}) where F <: AbstractFloat
+@inline function k_m_ops(km::KinematicOperators, cfr::HamiltonianOperators, priors::Vector{Vector{F}}, ϵs::Vector{F}, r_aux::AbstractArray{F,2}) where F <: AbstractFloat
     #Calculates the Fermi Functions
 
     #Set some diagonals
@@ -170,42 +122,21 @@ end
     end
 
     #Assigns the rest of the operators in the section
-    kinematic_ops(km, cfr, priors, r_aux)
-
-    nothing
-end
-
-function (k_obs::KinematicDensity)(k::Vector{F}) where F <: Number #::Tuple{KinematicOperators{AbstractFloat},HamiltonianOperators}
-    k_obs.hd(k)
-    cartan_transform(k_obs.hd.h_ops)
-    kinematic_ops(k_obs.k_m, k_obs.hd.h_ops, k_obs.priors, k_obs.hd.h_ops.E.values, k_obs.aux_real)
-    nothing
-end
-
-#=
-#Constructor for Block priors
-function KinematicDensity(tbi::TightBindingInfo{Int64,F}, priors::Array{NTuple{N,F},N} where N) where F <: AbstractFloat
-    KinematicDensity(((x->[x...]).(priors))[:], TightBindingDensity(tbi), KinematicOperators(size(tbi.index_rep,1),length(priors)), SharedArray(zeros(F, size(tbi.index_rep))))
-end
-
-function KinematicDensity(tbi::TightBindingInfo{Int64,F}, priors::Vector{Tuple{Symbol,F,F,Int64}}) where F <: Number
-    inputs = ( (x->[x...]).(collect(Iterators.product([range(p[2],p[3],length=p[4]) for p∈priors]...))[:]), TightBindingDensity(tbi), KinematicOperators(size(tbi.index_rep,1),prod(getindex.(priors,4))), SharedArray(zeros(F, size(tbi.index_rep))))
-    signature = (typeof(1),typeof(1.0),typeof(inputs[2]),typeof(inputs[3]))
-    KinematicDensity{signature...}(inputs...)
-end
-
-function KinematicDensity(tbi::TightBindingInfo{Int64,F}, priors::Vector{LinRange{F}}) where F <: AbstractFloat
-    Kinematic(TightBindingDensity(tbi),priors)
-end
-
-function KinematicDensity(tbi::TightBindingInfo{Int64,F}, priors::Vector{Vector{F}}) where F <: AbstractFloat
-    KinematicDensity(TightBindingDensity(tbi),priors)
-end
-=#
-#=
-@inbounds @simd for i=eachindex(inv_dω)
-    @fastmath if (inv_dω[i] > cutoff) | (inv_dω[i] < -cutoff)
-        inv_dω[i]=0.0
+    for a ∈ 1:length(cfr.v)
+        @inbounds km.re[a]   .= -im .* (r_aux) .* (cfr.v[a]);
     end
+
+    nothing
 end
-=#
+
+struct KinematicDensity{H_Type <: HamiltonianDensity, O_Type <: OperatorSet, AUXA <: AbstractArray, PA <: AbstractArray} <: OperatorDensity
+    k_m::O_Type
+    aux_real::AUXA
+    priors::PA
+end
+
+function KinematicDensity(hd::H where H <: HamiltonianDensity{Int64,F}, priors0; style::Symbol=:normal) where F <: AbstractFloat
+    priors = collect_priors(priors0)
+    inputs = (KinematicOperators(size(hd.h_ops.h,1),length(priors); style=style), zeros(F, size(hd.h_ops.h)),priors)
+    KinematicDensity{typeof.(inputs)...}(inputs...)
+end
