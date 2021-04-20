@@ -6,7 +6,7 @@ struct SHG2E{TType <: TensorChart} <: ReponseChart
 end
 
 @inline function shg2e_Re(dωml::Float64,dωln::Float64, reanm::C, rebml::C, rebln::C, recml::C, recln::C)::C where C <: Complex{Float64}
-    @fastmath return Complex((0.5/(dωln-dωml)),0.0)*reanm*(rebml*recln+recml*rebln)
+    @fastmath reanm*Complex((0.5/(dωln-dωml)),0.0)*(rebml*recln+recml*rebln)
 end
 
 function shg2e_evaluation(tc::TensorChart,K::KinematicOperators, H::HamiltonianOperators, dim_ℋ::Int64)
@@ -22,7 +22,7 @@ function shg2e_evaluation(tc::TensorChart,K::KinematicOperators, H::HamiltonianO
                         if (l!=n)&&(l!=m)
                             @fastmath ml = m + (l-1)*dim_ℋ
                             @fastmath ln = l + (n-1)*dim_ℋ
-                            @fastmath @inbounds Re2 += shg2e_Re(K.dω[ml],K.dω[ln],K.re[a][nm],K.re[b][ml],K.re[b][ln],K.re[c][ml],K.re[c][ln])
+                            @fastmath @inbounds Re2 +=  shg2e_Re(K.dω[ml],K.dω[ln],K.re[a][nm],K.re[b][ml],K.re[b][ln],K.re[c][ml],K.re[c][ln])
                         end
                     end
                     for (ib,(ω,)) ∈ enumerate(tc.base)
