@@ -2,11 +2,12 @@
 """
     DataMap{ChartType <: DataChart, KType <: KinematicDensity, LType <: AbstractArray}
 """
-struct DataMap{ChartType <: DataChart, KType <: KinematicDensity, LType <: AbstractArray}
+struct DataMap{ChartType <: DataChart, OType <: OperatorDensity, KType <: KinematicDensity, LType <: AbstractArray}
     d::Int
     Λ::LType
     K::KType
     chart::ChartType
+    ops::OType
 end
 
 """
@@ -141,16 +142,20 @@ end
     chart = fieldtypes(fieldtype(section,1))[end-3]
     if chart <: MArray
         quote
-            dm.K(k)
+            dm.hd(k)
+            dm.K(dm.hd)
             section.$name.data .= 0.0
+            $(Symbol(name,:(_operators)))(section.$name, dm.K.k_m, dm.hd.h_ops, dm.d)
             $(Symbol(name,:(_evaluation)))(section.$name, dm.K.k_m, dm.K.hd.h_ops, dm.d)
             SArray(section.$name.data)
         end
     else
         quote
-            dm.K(k)
+            dm.hd(k)
+            dm.K(dm.hd)
             section.$name.data .= 0.0
-            $(Symbol(name,:(_evaluation)))(section.$name, dm.K.k_m, dm.K.hd.h_ops, dm.d)
+            $(Symbol(name,:(_operators)))(section.$name, dm.K.k_m, dm.K.hd.h_ops, dm.d)
+            $(Symbol(name,:(_evaluation)))(section.$name, dm.K.k_m, dm.K.hd.h_ops, dm.d, dm.ops)
             copy(section.$name.data)
         end
     end
