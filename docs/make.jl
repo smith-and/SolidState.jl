@@ -9,7 +9,7 @@ println("starting with docs!")
 makedocs(;
     modules=[SolidState],
     authors="Andrew Smith <asmith.nic@gmail.com> and contributors",
-    repo="https://gitlab.com/solidstateapps/SolidState",
+    # repo="https://gitlab.com/solidstateapps/SolidState",
     sitename="SolidState",
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
