@@ -44,6 +44,7 @@ function KinematicOperators(dim::Integer, priorsN::Integer,d=2; style::Symbol=:n
     end
 end
 
+
 struct KinematicDensity{H_Type <: HamiltonianDensity, K_Type <: KinematicOperators, AUXA <: AbstractArray, PA <: AbstractArray}
     hd::H_Type
     k_m::K_Type
