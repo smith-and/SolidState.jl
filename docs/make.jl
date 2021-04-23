@@ -1,5 +1,4 @@
 using Documenter, Literate, SolidState,
-using Documenter: doctest
 
 # Make Documentation Pages
 Literate.markdown("$(@__DIR__)/src/dev.jl","$(@__DIR__)/src")
