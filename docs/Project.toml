@@ -1,4 +1,5 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
-Git = "d7ba0133-e1db-5d97-8f8c-041e4b3a1eb2"
+Hop = "27194a60-cc7c-11e8-1833-27a509d26cbc"
+Literate = "98b081ad-f1c9-55d3-8b20-4c87d4299306"
 SolidState = "2c09af30-f0d4-40de-b169-b86295c0c66a"
