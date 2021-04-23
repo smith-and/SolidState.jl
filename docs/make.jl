@@ -1,23 +1,26 @@
-using Documenter, SolidState, Git
-# include("$(ENV["HOME"])/.julia/config/startup.jl")
-# makedocs(sitename="SolidState")
+using Documenter, Literate, SolidState,
+using Documenter: doctest
 
-DocMeta.setdocmeta!(SolidState, :DocTestSetup, :(using SolidState); recursive=true)
+# Make Documentation Pages
+Literate.markdown("$(@__DIR__)/src/dev.jl","$(@__DIR__)/src")
+
+DocMeta.setdocmeta!(SolidState, :DocTestSetup, :(using Documenter); recursive=true)
 
 println("starting with docs!")
 
 makedocs(;
     modules=[SolidState],
     authors="Andrew Smith <asmith.nic@gmail.com> and contributors",
-    # repo="https://gitlab.com/solidstateapps/SolidState",
+    repo="https://gitlab.com/solidstateapps/SolidState",
     sitename="SolidState",
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
         canonical="https://solidstateapps.gitlab.io/SolidState",
         assets=String[],
     ),
-    pages=[
-        "Home" => "index.md",
+    pages = [
+        "Homepage" => "index.md",
+        "ReferenceCheck" => "dev.md"
     ],
 )
 
