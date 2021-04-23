@@ -11,8 +11,6 @@ tests:
 pages:
   stage: deploy
   script:
-    - mkdir -p public
-    - mv docs/build public/dev
     - apt update
     - apt install --assume-yes make gcc git
     - julia -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd()));'
