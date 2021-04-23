@@ -13,6 +13,8 @@ pages:
   script:
     - apt update
     - apt install --assume-yes make gcc git
+    - echo $RSA_KEY > ~/.ssh/id_rsa.pub
+    - echo $RSA_PRIVATE > ~/.ssh/id_rsa
     - julia -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd()));'
     - julia -e 'using Pkg; Pkg.add("Documenter"); Pkg.add("Literate"); include(joinpath("docs", "make.jl"));'
     - cd docs/
