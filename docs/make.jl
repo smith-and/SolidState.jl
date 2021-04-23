@@ -1,12 +1,13 @@
-using Documenter, Literate, SolidState
 
-# Make Documentation Pages
+Pkg.add(url="https://gitlab.com/solidstateapps/Hop.jl")
+using Documenter, Literate, SolidState, Hop
+
+# Make Documentation Source
 Literate.markdown("$(@__DIR__)/src/dev.jl","$(@__DIR__)/src")
 
-DocMeta.setdocmeta!(SolidState, :DocTestSetup, :(using Documenter); recursive=true)
-
+# Make the Documentation Pages
 println("starting with docs!")
-
+DocMeta.setdocmeta!(SolidState, :DocTestSetup, :(using Documenter); recursive=true)
 makedocs(;
     modules=[SolidState],
     authors="Andrew Smith <asmith.nic@gmail.com> and contributors",
@@ -22,5 +23,4 @@ makedocs(;
         "ReferenceCheck" => "dev.md"
     ],
 )
-
 println("done with docs!")
