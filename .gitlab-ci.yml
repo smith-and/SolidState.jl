@@ -14,7 +14,8 @@ pages:
     - apt update
     - apt install --assume-yes make gcc git
     - julia -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd()));'
-    - julia -e 'using Pkg; Pkg.add("Documenter"); Pkg.add("Literate"); Pkg.add(url="https://gitlab.com/solidstateapps/Hop.jl"); include(joinpath("docs", "make.jl"));'
+    # - Pkg.add(url="https://gitlab.com/solidstateapps/Hop.jl"); 
+    - julia -e 'using Pkg; Pkg.add("Documenter"); Pkg.add("Literate"); include(joinpath("docs", "make.jl"));'
     - cd docs/
     - mv build ../public/
   artifacts:
