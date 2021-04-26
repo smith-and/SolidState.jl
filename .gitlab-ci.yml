@@ -22,7 +22,7 @@ pages:
     - |
     - julia -e 'using Pkg; 
         Pkg.add(path="./Hop.jl"); 
-        Pkg.activate("docs")
+        Pkg.activate("docs");
         Pkg.instantiate();
         include(joinpath("docs", "make.jl"));
       '
