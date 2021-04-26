@@ -22,9 +22,9 @@ pages:
     - julia -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd()));'
     - |
     - julia -e 'using Pkg;
+        Pkg.activate("docs");
         Pkg.add(path="./Hop.jl");
         Pkg.add(path="./SolidStateApps");
-        Pkg.activate("docs");
         Pkg.instantiate();
         include(joinpath("docs", "make.jl"));
       '
