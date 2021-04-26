@@ -19,7 +19,13 @@ pages:
     - ls
   script:
     - julia -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd()));'
-    - julia -e 'using Pkg; Pkg.add("Documenter"); Pkg.add("Literate"); Pkg.add(path="./Hop.jl"); include(joinpath("docs", "make.jl"));'
+    - |
+    - julia -e 'using Pkg; 
+        Pkg.add(path="./Hop.jl"); 
+        Pkg.activate("docs");
+        Pkg.instantiate();
+        include(joinpath("docs", "make.jl"));
+      '
     - cd docs/
     - mv build ../public/
   artifacts:
