@@ -13,11 +13,13 @@ pages:
   before_script:
     - apt update
     - apt install --assume-yes make gcc git
-    - git config --global url."https://${CI_USERNAME}:${CI_JOB_TOKEN}@gitlab.com/".insteadOf "git@gitlab.com:"
-    - git submodule sync && git submodule update --init
+    # - git config --global url."https://${CI_USERNAME}:${CI_JOB_TOKEN}@gitlab.com/".insteadOf "git@gitlab.com:"
+    # - git submodule sync && git submodule update --init
+    - git clone https://$CI_USERNAME:$CI_JOB_TOKEN@gitlab.com/solidstateapps/Hop.jl.git
+    - ls
   script:
     - julia -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd()));'
-    - julia -e 'using Pkg; Pkg.add("Documenter"); Pkg.add("Literate"); include(joinpath("docs", "make.jl"));'
+    - julia -e 'using Pkg; Pkg.add("Documenter"); Pkg.add("Literate"); Pkg.add(path="./Hop.jl"); include(joinpath("docs", "make.jl"));'
     - cd docs/
     - mv build ../public/
   artifacts:
