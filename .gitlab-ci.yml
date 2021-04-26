@@ -13,10 +13,7 @@ pages:
   script:
     - apt update
     - apt install --assume-yes make gcc git
-    - touch ~/.ssh/id_rsa.pub
-    - touch ~/.ssh/id_rsa
-    - echo $RSA_KEY > ~/.ssh/id_rsa.pub
-    - echo $RSA_PRIVATE > ~/.ssh/id_rsa
+    - echo $CI_JOB_TOKEN
     - julia -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd()));'
     - julia -e 'using Pkg; Pkg.add("Documenter"); Pkg.add("Literate"); include(joinpath("docs", "make.jl"));'
     - cd docs/
