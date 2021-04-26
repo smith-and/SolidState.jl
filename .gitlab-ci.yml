@@ -10,9 +10,12 @@ tests:
 
 pages:
   stage: deploy
-  script:
+  before_script:
     - apt update
     - apt install --assume-yes make gcc git
+    - git config --global url."https://${CI_USERNAME}:${CI_JOB_TOKEN}@gitlab.com/".insteadOf "git@gitlab.com:"
+    - git submodule sync && git submodule update --init
+  script:
     - julia -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd()));'
     - julia -e 'using Pkg; Pkg.add("Documenter"); Pkg.add("Literate"); include(joinpath("docs", "make.jl"));'
     - cd docs/
