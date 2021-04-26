@@ -1,5 +1,3 @@
-
-Pkg.add(url="https://gitlab.com/solidstateapps/Hop.jl")
 using Documenter, Literate, SolidState, Hop
 
 # Make Documentation Source
