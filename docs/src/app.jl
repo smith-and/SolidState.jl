@@ -1,8 +1,8 @@
 # Code for calling Hop
 using Distributed
-using BSON, OrderedCollections, LinearAlgebra, Plots
+@everywhere using BSON, OrderedCollections, LinearAlgebra, Plots
+@everywhere using Hop, SolidState, SolidStateApps
 
-@everywhere using Hop, SolidState
 function getBN()
     lat = [1 1/2 0; 0 √3/2 0; 0 0 2.0];
     site_positions = lat*([1/3 1/3 0; 2/3 2/3 0; 1/3 1/3 1; 2/3 2/3 1]')

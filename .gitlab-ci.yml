@@ -16,12 +16,14 @@ pages:
     # - git config --global url."https://${CI_USERNAME}:${CI_JOB_TOKEN}@gitlab.com/".insteadOf "git@gitlab.com:"
     # - git submodule sync && git submodule update --init
     - git clone https://$CI_USERNAME:$CI_JOB_TOKEN@gitlab.com/solidstateapps/Hop.jl.git
+    - git clone https://$CI_USERNAME:$CI_JOB_TOKEN@gitlab.com/solidstateapps/SolidStateApps.git
     - ls
   script:
     - julia -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd()));'
     - |
-    - julia -e 'using Pkg; 
-        Pkg.add(path="./Hop.jl"); 
+    - julia -e 'using Pkg;
+        Pkg.add(path="./Hop.jl");
+        Pkg.add(path="./SolidStateApps");
         Pkg.activate("docs");
         Pkg.instantiate();
         include(joinpath("docs", "make.jl"));
