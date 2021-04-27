@@ -1,7 +1,7 @@
 # Code for calling Hop
 using Distributed
 @everywhere using BSON, OrderedCollections, LinearAlgebra, Plots
-@everywhere using Hop, SolidState, SolidStateApps
+@everywhere using Hop, SolidState
 
 function getBN()
     lat = [1 1/2 0; 0 √3/2 0; 0 0 2.0];
@@ -33,7 +33,7 @@ end
 # Calculate and Plot the band structures
 function make_data(; asd, paths, Npath, Nbz, dtype, indices, priors, base, dom, kargs...)
     hd = SolidState.TightBindingDensity(asd())
-    band_dict = SolidStateApps.band_plot(asd(),hd,paths,Npath)
+    band_dict = SolidState.Apps.band_plot(asd(),hd,paths,Npath)
 
     ds = DataSection(DataMap(dtype,asd(),indices,priors,base),dom);
     ds();

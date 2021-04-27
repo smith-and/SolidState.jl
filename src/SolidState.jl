@@ -81,7 +81,6 @@ module SolidState
         using ..SolidState
         using ..SolidState: make_models, cθ, CommensurateASD,  integrate, cointegrate, data_import
 
-
         #Running Methods
         include("apps/compiler.jl")
         include("apps/header.jl")
