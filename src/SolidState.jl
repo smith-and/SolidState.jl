@@ -58,12 +58,11 @@ module SolidState
 
 
     module Scaling
-        using Distributed
-        @everywhere using OrderedCollections, LinearAlgebra, Distributed, PackageCompiler, LsqFit, BSON, Dates, BenchmarkTools, SharedArrays
-        @everywhere using Plots
+        using OrderedCollections, LinearAlgebra, Distributed, PackageCompiler, BSON, SharedArrays
+        using Plots, LsqFit, Dates, BenchmarkTools
 
-        @everywhere using ..SolidState
-        @everywhere using ..SolidState: make_models, cθ, CommensurateASD,  integrate, cointegrate, data_import
+        using ..SolidState
+        using ..SolidState: make_models, cθ, CommensurateASD,  integrate, cointegrate, data_import
 
         #Include Test Functions
         include("scaling/dim_scaling.jl")
@@ -73,46 +72,45 @@ module SolidState
         include("scaling/julia_workers.jl")
         include("scaling/blas_julia_thread_tradeoff.jl")
     end
-    #
-    # module Apps
-    #     using Distributed
-    #     @everywhere using OrderedCollections, LinearAlgebra, Distributed, PackageCompiler, LsqFit, BSON, Dates, BenchmarkTools, SharedArrays
-    #     @everywhere using Plots
-    #     @everywhere using Mux, WebIO, Interact, InteractiveUtils
-    #
-    #     @everywhere using ..SolidState
-    #     @everywhere using ..SolidState: make_models, cθ, CommensurateASD,  integrate, cointegrate, data_import
-    #
-    #
-    #     #Running Methods
-    #     include("apps/compiler.jl")
-    #     include("apps/header.jl")
-    #     include("apps/serving.jl")
-    #
-    #     #Runtime Methods
-    #     include("apps/metric.jl")
-    #     include("apps/integral_plot.jl")
-    #     include("apps/hsp_spectra.jl")
-    #
-    #     #Band Methods
-    #     include("apps/bands/bands.jl")
-    #     include("apps/bands/state_projector.jl")
-    #
-    #     #Extraction Methods
-    #     include("apps/extraction/extraction.jl")
-    #     include("apps/extraction/extraction_plots.jl")
-    #     include("apps/extraction/extraction_plotter.jl")
-    #
-    #     # DataSection Selector
-    #     include("apps/ds_selector/abs_angle_selector.jl")
-    #
-    #     #Component Deck
-    #     include("apps/component_deck/widget_deck.jl")
-    #     include("apps/component_deck/slide_wrapper.jl")
-    #
-    #     # Snipe Spray Interface
-    #     include("apps/snipe_spray/snipe_inputs.jl")
-    #
-    # end
+
+    module Apps
+        using Distributed
+        using OrderedCollections, LinearAlgebra, Distributed, PackageCompiler, BSON, SharedArrays
+        using Plots, Mux, WebIO, Interact, InteractiveUtils, BenchmarkTools, LsqFit, Dates
+
+        using ..SolidState
+        using ..SolidState: make_models, cθ, CommensurateASD,  integrate, cointegrate, data_import
+
+
+        #Running Methods
+        include("apps/compiler.jl")
+        include("apps/header.jl")
+        include("apps/serving.jl")
+
+        #Runtime Methods
+        include("apps/metric.jl")
+        include("apps/integral_plot.jl")
+        include("apps/hsp_spectra.jl")
+
+        #Band Methods
+        include("apps/bands/bands.jl")
+        include("apps/bands/state_projector.jl")
+
+        #Extraction Methods
+        include("apps/extraction/extraction.jl")
+        include("apps/extraction/extraction_plots.jl")
+        include("apps/extraction/extraction_plotter.jl")
+
+        # DataSection Selector
+        include("apps/ds_selector/abs_angle_selector.jl")
+
+        #Component Deck
+        include("apps/component_deck/widget_deck.jl")
+        include("apps/component_deck/slide_wrapper.jl")
+
+        # Snipe Spray Interface
+        include("apps/snipe_spray/snipe_inputs.jl")
+
+    end
 
 end
