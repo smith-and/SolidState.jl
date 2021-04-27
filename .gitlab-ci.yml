@@ -21,7 +21,6 @@ pages:
     - julia -e 'using Pkg;
         Pkg.activate("docs");
         Pkg.add(url="https://$(ENV["CI_USERNAME"]):$(ENV["CI_JOB_TOKEN"])@gitlab.com/solidstateapps/Hop.jl.git");
-        Pkg.add(url="https://$(ENV["CI_USERNAME"]):$(ENV["CI_JOB_TOKEN"])@gitlab.com/solidstateapps/SolidStateApps.git");
         Pkg.instantiate();
         include(joinpath("docs", "make.jl"));
       '
