@@ -13,15 +13,12 @@ pages:
   before_script:
     - apt update
     - apt install --assume-yes make gcc git
-    # - git config --global url."https://${CI_USERNAME}:${CI_JOB_TOKEN}@gitlab.com/".insteadOf "git@gitlab.com:"
-    # - git submodule sync && git submodule update --init
   script:
     - julia -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd()));'
     - |
     - julia -e 'using Pkg;
         Pkg.activate("docs");
         Pkg.add(url="https://$(ENV["CI_USERNAME"]):$(ENV["CI_JOB_TOKEN"])@gitlab.com/solidstateapps/Hop.jl.git");
-        Pkg.add(url="https://$(ENV["CI_USERNAME"]):$(ENV["CI_JOB_TOKEN"])@gitlab.com/solidstateapps/SolidStateApps.git");
         Pkg.instantiate();
         include(joinpath("docs", "make.jl"));
       '
