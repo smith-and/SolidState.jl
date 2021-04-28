@@ -30,7 +30,7 @@ Make sysimage for modules [:Plots,:SolidState,:SolidStateApps] and in cachedir
 function prestack(cachedir::String=pwd())
     println("compiling a system image")
     cdir = mkpath("$cachedir/.cache/system");
-    stats = @timed PackageCompiler.create_sysimage([:Plots,:SolidState,:SolidStateApps],
+    stats = @timed PackageCompiler.create_sysimage([:BSON, :OrderedCollections, :LinearAlgebra, :Plots, :SolidState],
         sysimage_path               = "$cdir/sysimage.dylib",
         precompile_execution_file   = "$(@__DIR__)/precompile_script.jl",
         #project                     = "$(ENV["HOME"])/.julia/environments/v1.5/",

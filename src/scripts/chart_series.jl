@@ -149,3 +149,36 @@ function chart_plot(int_args, model_args)
     @time plot_integrals(int_args...; model_args...)
     nothing
 end
+#
+# function main_script(asd::Symbol, comargs::Tuple{Symbol,Int,Int}, datatype, indices, base, f, evals::AbstractRange; name=asd, saving = true, pool::Union{AbstractWorkerPool,Symbol}=default_worker_pool())
+#     #Data Chart Argument
+#     priors = [(:T,0.0,0.0,1),(:μ,0.0,0.0,1),(:δ,0.02,0.02,1)]
+#     arg    = (datatype, indices, priors, base, evals, f)
+#     #Set Paths for running
+#     pargs   = program_args(name,
+#         headdir  = "$(@__DIR__)/..",
+#         cachedir = "$(@__DIR__)/../.cache",
+#         pool     = pool,
+#         key      = "$datatype"
+#     );
+#     margs = model_args(asd, comargs, pargs) #Set Model Set Information
+#
+#     #Compute & Plot Chart Integrals
+#     chart_study(arg,margs)
+#     chart_plot(arg,margs)
+#
+#     #Delete the results
+#     !saving && rm.(("$(pargs.scriptdir)","$(pargs.plotdir)"),recursive=true)
+# end
+#
+# function main_script(saving=false)
+#     println("----Doing Compilation Step----------------------")
+#     main_script(:ASD4,(:hull,1,1),DOS,[(1,)],(:w,:bandwidth,100),imag,1:1:1,saving=saving,pool=:none,name=Symbol(:(COMP),"/",rand(Int)))
+#     println("----Done with Compilation Step------------------")
+# end
+#
+# function main(asd::Symbol, comargs::Tuple{Symbol,Int,Int}, datatype, indices, base, f, evals::AbstractRange; name=asd, saving = true, pool::Union{AbstractWorkerPool,Symbol}=default_worker_pool())
+#     main_script()
+#     main_script(asd, comargs, datatype, indices, base, f, evals; name=name, saving=saving, pool=pool)
+# end
+#

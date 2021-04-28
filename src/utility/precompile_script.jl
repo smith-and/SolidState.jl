@@ -5,11 +5,10 @@ using Distributed
 @everywhere include("$(ENV["HOME"])/.julia/config/startup.jl")
 
 @everywhere using SolidState
-@everywhere using SolidStateApps
 @everywhere using OrderedCollections, LinearAlgebra
 
 @everywhere using SolidState: DOS, LP, SHG
-@everywhere using SolidStateApps: chart_study, chart_plot
+@everywhere using SolidState.Apps: chart_study, chart_plot
 
 function precompile_main()
     #Set Paths for running

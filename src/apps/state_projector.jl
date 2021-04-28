@@ -130,7 +130,7 @@ end
 function state_projector_widget(asd,hd)
 
     asdg = asd|>SolidState.ASDGeometry
-    bp_dict = SolidStateApps.band_plot(asd,hd)
+    bp_dict = SolidState.band_plot(asd,hd)
 
     comps = Dict{Symbol,Any}()
     comps[:hd] = hd

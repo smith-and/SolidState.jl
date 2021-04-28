@@ -2,8 +2,15 @@ module SolidState
     using Revise
     using Distributed, Dates, OrderedCollections, BSON
     using LinearAlgebra, SharedArrays, StaticArrays
+    using Mux, WebIO, Interact, InteractiveUtils
     using CubicSplines, Roots, SpecialFunctions, HCubature
     using Base: Threads
+
+    # Compiling Methods
+    include("utility/compiler.jl")
+    include("utility/header.jl")
+    include("utility/serving.jl")
+
     #Generalized Slater-Koster Functions
     include("opt/GSK.jl")
 
@@ -34,28 +41,6 @@ module SolidState
     export TensorChart, DataMap, DataIntegral, DataSection
     export data_export, data_import
     include("opt/datastructures.jl")
-    export logstep
-
-    """
-        function logstep(p,n)::AbstractRange
-    """
-    function logstep(p,n)::AbstractRange
-        p^(n-1):p^(n-1):p^n
-    end
-
-    export log2step
-    """
-        function log2step(p::Int,n::Int)::AbstractRange
-    """
-    function log2step(p::Int,n::Int)::AbstractRange
-        p^(n-1):9*p^(n-1):p^n
-    end
-
-    export log3step
-    function log3step(p::Int,n::Int)::AbstractRange
-        p^(n-1):3*p^(n-1):p^n
-    end
-
 
     module Scaling
         using OrderedCollections, LinearAlgebra, Distributed, PackageCompiler, BSON, SharedArrays
@@ -71,34 +56,31 @@ module SolidState
         include("scaling/convergence_test.jl")
         include("scaling/julia_workers.jl")
         include("scaling/blas_julia_thread_tradeoff.jl")
+        include("scaling/metric.jl")
     end
+
+    # Snipe Spray Scripting Methods
+    # include("scripts/snipe_inputs.jl")
+    include("scripts/chart_series.jl")
+    include("scripts/bands.jl")
+    include("scripts/hsp_spectra.jl")
 
     module Apps
         using Distributed
         using OrderedCollections, LinearAlgebra, Distributed, PackageCompiler, BSON, SharedArrays
-        using Plots, Mux, WebIO, Interact, InteractiveUtils, BenchmarkTools, LsqFit, Dates
+        using Plots, BenchmarkTools, LsqFit, Dates
+        using Mux, WebIO, Interact, InteractiveUtils
 
         using ..SolidState
         using ..SolidState: make_models, cθ, CommensurateASD,  integrate, cointegrate, data_import
 
-        #Running Methods
-        include("apps/compiler.jl")
-        include("apps/header.jl")
-        include("apps/serving.jl")
-
-        #Runtime Methods
-        include("apps/metric.jl")
-        include("apps/integral_plot.jl")
-        include("apps/hsp_spectra.jl")
-
         #Band Methods
-        include("apps/bands/bands.jl")
         include("apps/bands/state_projector.jl")
 
         #Extraction Methods
-        include("apps/extraction/extraction.jl")
-        include("apps/extraction/extraction_plots.jl")
-        include("apps/extraction/extraction_plotter.jl")
+        include("apps/completion/extraction.jl")
+        include("apps/completion/extraction_plots.jl")
+        include("apps/completion/extraction_plotter.jl")
 
         # DataSection Selector
         include("apps/ds_selector/abs_angle_selector.jl")
@@ -106,10 +88,8 @@ module SolidState
         #Component Deck
         include("apps/component_deck/widget_deck.jl")
         include("apps/component_deck/slide_wrapper.jl")
-
-        # Snipe Spray Interface
-        include("apps/snipe_spray/snipe_inputs.jl")
-
     end
+
+
 
 end

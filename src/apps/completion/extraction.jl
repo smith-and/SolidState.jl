@@ -1,7 +1,7 @@
-function dir_extract(dir, asd, RN; local_dir, mount_dir, kargs...)
+function dir_extract(dir, asd, RN; target_dir, mount_dir, kargs...)
     #Extract these directories from bridges
-    dir_contents = readdir(mkpath("$local_dir/$asd/$dir/$RN"))
-    ext_dirs = dir_contents[isdir.("$local_dir/$asd/$dir/$RN/" .* dir_contents)]
+    dir_contents = readdir(mkpath("$target_dir/$asd/$dir/$RN"))
+    ext_dirs = dir_contents[isdir.("$target_dir/$asd/$dir/$RN/" .* dir_contents)]
 
     extract  = false
     if length(ext_dirs)==0
@@ -15,10 +15,10 @@ function dir_extract(dir, asd, RN; local_dir, mount_dir, kargs...)
     end
 
     if extract
-        println("-----Extracting: $local_dir/$asd/$dir/$RN")
-        run(`rsync -r --progress asmithc@bridges2.psc.edu:$mount_dir/$asd/$dir/$RN $local_dir/$asd/$dir/`)
+        println("-----Extracting: $target_dir/$asd/$dir/$RN")
+        run(`rsync -r --progress asmithc@bridges2.psc.edu:$mount_dir/$asd/$dir/$RN $target_dir/$asd/$dir/`)
     else
-        println("-----Already Extracted: $local_dir/$asd/$dir/$RN")
+        println("-----Already Extracted: $target_dir/$asd/$dir/$RN")
     end
 end
 
@@ -36,12 +36,12 @@ function datapull(data::DataIntegral)
 end
 
 """
-    import_charts(asd, RN; local_dir, kargs...)::AbstractChannel
+    import_charts(asd, RN; target_dir, kargs...)::AbstractChannel
 """
-function import_charts(asd, RN; local_dir, kargs...)::AbstractChannel
+function import_charts(asd, RN; target_dir, kargs...)::AbstractChannel
     #Accumulate Information from the local directories
     chnl = Channel{Dict{Symbol,Any}}(100)
-    for (root, dirs, files) in walkdir("$local_dir/$asd/.out/$RN")
+    for (root, dirs, files) in walkdir("$target_dir/$asd/.out/$RN")
         for file in files
             if occursin(".bson",file) && !occursin("error",file)
                 println("Added file: ")
@@ -86,46 +86,46 @@ function import_charts(asd, RN; local_dir, kargs...)::AbstractChannel
 end
 
 """
-    export_collection(chnl::AbstractChannel, asd, RN; local_dir, force = false, kargs...)
+    export_collection(chnl::AbstractChannel, asd, RN; target_dir, force = false, kargs...)
 """
-function export_collection(chnl::AbstractChannel, asd, RN; local_dir, force = false, kargs...)
+function export_collection(chnl::AbstractChannel, asd, RN; target_dir, force = false, kargs...)
     println("-----Starting Collection Export")
-    extraction_dir = mkpath("$local_dir/$asd/.out/$RN");
-    if !isfile("$extraction_dir/$RN.bson") || force
+    target_dir = mkpath("$target_dir/$asd/.out/$RN");
+    if !isfile("$target_dir/$RN.bson") || force
         println("-----Exporting Collection")
-        bson("$extraction_dir/$RN.bson",Dict(:chnl=>chnl))
+        bson("$target_dir/$RN.bson",Dict(:chnl=>chnl))
     else
         println("-----Already Exported Collection")
     end
 end
 
-function compose_collection(asd, RN; local_dir, mount_dir, force=false, kargs...)
+function compose_collection(asd, RN; target_dir, mount_dir, force=false, kargs...)
     #Copying from the mount
-    dir_extract(".plot", asd, RN; local_dir=local_dir, mount_dir=mount_dir)
-    dir_extract(".out",  asd, RN; local_dir=local_dir, mount_dir=mount_dir)
+    dir_extract(".plot", asd, RN; target_dir=target_dir, mount_dir=mount_dir)
+    dir_extract(".out",  asd, RN; target_dir=target_dir, mount_dir=mount_dir)
 
     #Loading BSON Files & Composing Data
-    chnl = import_charts(asd, RN; local_dir=local_dir)
+    chnl = import_charts(asd, RN; target_dir=target_dir)
 
     #Writing Collection to BSON
-    export_collection(chnl, asd, RN, local_dir=local_dir, force=force)
+    export_collection(chnl, asd, RN, target_dir=target_dir, force=force)
 
     println("-----Done Composing")
 end
 
 """
-    import_collection(asd, RN; local_dir, mount_dir, force=false, kargs...)
+    import_collection(asd, RN; target_dir, mount_dir, force=false, kargs...)
 
 Import collection data and make new collection if there is no collection.
   - asd: Symbol for the ASD
   - RN: Symbol for the run name
   - mount_dir: path of the directory of the sftp mount
-  - local_dir: path of the directory to look for an extraction (and make if none)
+  - target_dir: path of the directory to look for an extraction (and make if none)
 """
-function import_collection(asd, RN; local_dir, mount_dir, force=false, kargs...)
-    collection_path = "$local_dir/$asd/.out/$RN/$RN.bson"
-    dir_extract(".plot", asd, RN; local_dir=local_dir, mount_dir=mount_dir)
-    dir_extract(".out",  asd, RN; local_dir=local_dir, mount_dir=mount_dir)
+function import_collection(asd, RN; target_dir, mount_dir, force=false, kargs...)
+    collection_path = "$target_dir/$asd/.out/$RN/$RN.bson"
+    dir_extract(".plot", asd, RN; target_dir=target_dir, mount_dir=mount_dir)
+    dir_extract(".out",  asd, RN; target_dir=target_dir, mount_dir=mount_dir)
 
     if isfile(collection_path)
         println("-----Importing Collection:")
@@ -135,17 +135,17 @@ function import_collection(asd, RN; local_dir, mount_dir, force=false, kargs...)
         println("-----No Collection")
         if typeof(mount_dir)==String
             println("-----Composing Collection")
-            compose_collection(asd, RN; local_dir=local_dir, mount_dir=mount_dir, force=force)
+            compose_collection(asd, RN; target_dir=target_dir, mount_dir=mount_dir, force=force)
             BSON.load(collection_path)[:chnl]
         end
     end
 end
 
 """
-    import_collection(; asd, RN, local_dir, mount_dir, force=false, kargs...)
+    import_collection(; asd, RN, target_dir, mount_dir, force=false, kargs...)
 
 A keyword argument only interface for the import
 """
-function import_collection(; asd, RN, local_dir, mount_dir, force=false, kargs...)
-    import_collection(asd, RN; local_dir=local_dir, mount_dir=mount_dir, force=force, kargs...)
+function import_collection(; asd, RN, target_dir, mount_dir, force=false, kargs...)
+    import_collection(asd, RN; target_dir=target_dir, mount_dir=mount_dir, force=force, kargs...)
 end

@@ -67,3 +67,24 @@ function model_args(asd::Symbol,(series,minn,maxn)::Tuple{Symbol,Int,Int},pargs)
 
     args
 end
+
+export logstep
+"""
+    function logstep(p,n)::AbstractRange
+"""
+function logstep(p,n)::AbstractRange
+    p^(n-1):p^(n-1):p^n
+end
+
+export log2step
+"""
+    function log2step(p::Int,n::Int)::AbstractRange
+"""
+function log2step(p::Int,n::Int)::AbstractRange
+    p^(n-1):9*p^(n-1):p^n
+end
+
+export log3step
+function log3step(p::Int,n::Int)::AbstractRange
+    p^(n-1):3*p^(n-1):p^n
+end
