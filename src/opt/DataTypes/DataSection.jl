@@ -44,6 +44,8 @@ end
 
 """
     DataSection(dm::DataMap, dom::Vector{Tuple{Symbol,N,N,Int64}} where N <: Number)
+
+A Data Section constructor with a range input
 """
 function DataSection(dm::DataMap, dom::Vector{Tuple{Symbol,N,N,Int64}} where N <: Number)
     chart = getfield(dm.chart,1)
@@ -55,7 +57,7 @@ end
 """
     DataSection(dm::DataMap, dom::AbstractArray)
 
-DataMap constructor
+DataSection constructor
 """
 function DataSection(dm::DataMap, dom::AbstractArray)
     chart = getfield(dm.chart,1)
@@ -77,10 +79,10 @@ function DataSection(;asd,mn,dtype,N,indices,priors,base,cachedir,offset, kargs.
 end
 
 
-"""
-    (ds::DataSection)()
-A call to sample the data map of the defined sampling space and thus form a section
-"""
+# """
+#     (ds::DataSection)()
+# A call to sample the data map of the defined sampling space and thus form a section
+# """
 function (ds::DataSection)()
     for (i,b) ∈ enumerate(ds.chart.base)
         ds.chart.data[(1+ds.datadim*(i-1)):ds.datadim*i] .= ds.dm(b)[:]

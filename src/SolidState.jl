@@ -7,9 +7,6 @@ module SolidState
     using Base: Threads
 
     # Compiling Methods
-    include("utility/compiler.jl")
-    include("utility/header.jl")
-    include("utility/serving.jl")
 
     #Generalized Slater-Koster Functions
     include("opt/GSK.jl")
@@ -41,6 +38,10 @@ module SolidState
     export TensorChart, DataMap, DataIntegral, DataSection
     export data_export, data_import
     include("opt/datastructures.jl")
+
+    include("utility/compiler.jl")
+    include("utility/serving.jl")
+    include("utility/header.jl")
 
     module Scaling
         using OrderedCollections, LinearAlgebra, Distributed, PackageCompiler, BSON, SharedArrays
@@ -74,18 +75,16 @@ module SolidState
         using ..SolidState
         using ..SolidState: make_models, cθ, CommensurateASD,  integrate, cointegrate, data_import
 
-        #Band Methods
-        include("apps/bands/state_projector.jl")
-
-        #Extraction Methods
+        # Extraction Methods
         include("apps/completion/extraction.jl")
         include("apps/completion/extraction_plots.jl")
         include("apps/completion/extraction_plotter.jl")
 
-        # DataSection Selector
-        include("apps/ds_selector/abs_angle_selector.jl")
+        # Interactive Apps
+        include("apps/state_projector.jl")
+        include("apps/abs_angle_selector.jl")
 
-        #Component Deck
+        # Component Deck
         include("apps/component_deck/widget_deck.jl")
         include("apps/component_deck/slide_wrapper.jl")
     end
