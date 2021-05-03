@@ -144,8 +144,17 @@ end
 """
     import_collection(; asd, RN, target_dir, mount_dir, force=false, kargs...)
 
-A keyword argument only interface for the import
+Import collection data and make new collection if there is no collection.
+      - asd: Symbol for the ASD
+      - RN: Symbol for the run name
+      - mount_dir: path of the directory of the sftp mount
+      - target_dir: path of the directory to look for an extraction (and make if none)
 """
 function import_collection(; asd, RN, target_dir, mount_dir, force=false, kargs...)
     import_collection(asd, RN; target_dir=target_dir, mount_dir=mount_dir, force=force, kargs...)
+end
+
+
+function import_collection(inputs ; args...)
+    import_collection(; inputs..., args...)
 end
