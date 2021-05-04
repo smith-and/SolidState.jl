@@ -18,7 +18,8 @@ makedocs(;
     ),
     pages = [
         "Homepage" => "index.md",
-        "ReferenceCheck" => "dev.md"
+        "ReferenceCheck" => "dev.md",
+        "test" => "test.md"
     ],
 )
 println("done with docs!")
