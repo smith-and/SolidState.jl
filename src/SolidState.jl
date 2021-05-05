@@ -1,6 +1,6 @@
 module SolidState
     using Revise
-    using Distributed, Dates, OrderedCollections, BSON
+    using Distributed, Dates, OrderedCollections, BSON, Plots
     using LinearAlgebra, SharedArrays, StaticArrays
     using Mux, WebIO, Interact, InteractiveUtils
     using CubicSplines, Roots, SpecialFunctions, HCubature
