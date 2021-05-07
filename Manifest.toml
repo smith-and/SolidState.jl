@@ -6,6 +6,12 @@ git-tree-sha1 = "f1b523983a58802c4695851926203b36e28f09db"
 uuid = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 version = "3.3.0"
 
+[[App]]
+deps = ["BSON", "CubicSplines", "Distributed", "LinearAlgebra", "OrderedCollections", "Plots", "Revise"]
+path = "/home/smitha/Dropbox/Graduate/daily/2021-05-04/App"
+uuid = "a2370a10-0cc9-40bd-ab82-dd2a10658737"
+version = "0.1.0"
+
 [[ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
 

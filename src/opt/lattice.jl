@@ -217,6 +217,8 @@ function ASDGSK(ASD::Dict{String,Any})::Dict{NTuple{N,String} where N,Any}
         return Dict(x=>gsk(covregfunctions(ASD["scales"][x])) for x=keys(ASD["scales"]))
     elseif  ASD["regulator"]=="exp"
         return Dict(x=>gsk(expregfunctions(ASD["scales"][x])) for x=keys(ASD["scales"]))
+    elseif ASD["regulator"] == "const"
+        return Dict(x=>gsk(constregfunctions(ASD["scales"][x])) for x=keys(ASD["scales"]))
     end
 end
 
@@ -242,7 +244,7 @@ function ASDBasics(ASD::Dict{String, Any})::Dict{String, Any}
     "xtal"=>xtal,
     "snames"=>sname,
     "regs"=>"reg",
-    "cutfunction"=>(x::Array{Float64,1}-> LinearAlgebra.norm(x)<=ASD["cutoff"]),
+    "cutfunction"=>(x ->(LinearAlgebra.norm(x)<=ASD["cutoff"])),
     "gsk"=>ASDGSK(ASD),
     "lbase"=>LatticePointsSym((xtal[1],[[0, 0, 0 ]]),ASD["lbase"]*[0 1 0 ;-1 0 0 ; 0 0 0 ],3)[1]
     )

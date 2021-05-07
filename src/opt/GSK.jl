@@ -10,6 +10,21 @@ function amid(l::Int,m::Int)
     (l,m)==(0,0) ? 1 : sum(2*s+1 for s=0:max((l-1),0))+m+l+1
 end
 
+function constreg(a,d,v,e)
+    function(r)
+        α = norm(r)>1e-8 ? exp(-(norm(r)-a)/d) : 1.0
+        norm(r)>1e-10 ? (println(exp(-(norm(r)-a)/d)); v*α) : e
+    end
+end
+
+function constregfunctions(energyscales)
+    refcouplingfs = map((a,d,v,e)->constreg(a,d,v,e),energyscales.as,energyscales.ds,energyscales.vs,energyscales.es);
+    function(l1, l2, m1, m2,r)
+        refcouplingfs[amid(l1,m1),amid(l2,m2)](r)
+    end
+end
+
+
 function expreg(a,d,v,e)
     function(r)
         norm(r)>1e-10 ? v*exp(-(norm(r)-a)/d) : e
