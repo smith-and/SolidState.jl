@@ -111,21 +111,6 @@ function (wc::weightcover)(x::Tuple{Int64,Int64})::Tuple{Array{Complex{Float64},
     ((wc.regs[x[1]].(wc.covers[x[2]]))::Array{Complex{Float64},1},wc.covers[x[2]]::Vector{Vector{Float64}})
 end
 
-
-#function assignment
-#=
-@inline @inbounds function rep_assign_core(idx::Int64, rep::HamiltonianOperators{Float64},vals::TBElement{Float64})::Nothing
-    rep.h[idx]      = vals.h[1];
-    rep.v[1][idx]   = vals.v[1];
-    rep.v[2][idx]   = vals.v[2];
-    rep.a[1,1][idx] = vals.a[1,1];
-    rep.a[2,1][idx] = vals.a[2,1];
-    rep.a[1,2][idx] = vals.a[1,2];
-    rep.a[2,2][idx] = vals.a[2,2];
-    nothing
-end
-=#
-
 function tb_info(asd)
 
     asdb=ASDBasics(asd);
@@ -153,12 +138,6 @@ function tb_info(asd)
         l_pjs[asdb["sqo"][i].layer][i,i] = Complex(1.0,0.0)
     end
 
-    #=projector_diags = [[ j*(length(asd["sites"])/get(asd,"bd",size(elTable,1))) < i <= (j+1)*(length(asd["sites"])/get(asd,"bd",size(elTable,1))) ? 1.0 : 0.0 for i=1:length(asd["sites"])] for j=0:(get(asd,"bd",size(elTable,1))-1)]
-    for j=1:length(l_pjs)
-        for i=1:length(projector_diags[1])
-            l_pjs[j][i,i] = projector_diags[j][i]
-        end
-    end=#
     #layer polarization
     z_center= unique(layer_indexes) |> x->sum(x)/length(x)
     pz = Array{Complex{Float64},2}(undef, size(index_table));
@@ -177,20 +156,42 @@ function tb_info(asd)
 
     slv_partition = [ findall(idx->(idx==τ_idx), τIdxs) .|> x -> (x,x)  for τ_idx=1:τ_dim]
     slv_pjs = [zeros(ComplexF64,(h_dim,h_dim)) for _=1:1]
-    #=for i=1:τ_dim
-        for j=1:length(slv_partition[i])
-            setindex!(slv_pjs[i], 1.0, slv_partition[i][j]...)
-        end
-    end=#
-
-#=
-    @inbounds for i=eachindex(tbf.el_f)
-        @inbounds for j=eachindex(tbf.el_f[i].index_domain)
-            rep_assign_core(tbf.el_f[i].index_domain[j], tbf.h_ops, tbf.el_f[i](k))
-        end
-    end
-=#
-
 
     (index_table, weights_unq, covers_unq, pz, l_pjs, slv_pjs)
 end
+
+#function assignment
+#=
+@inline @inbounds function rep_assign_core(idx::Int64, rep::HamiltonianOperators{Float64},vals::TBElement{Float64})::Nothing
+    rep.h[idx]      = vals.h[1];
+    rep.v[1][idx]   = vals.v[1];
+    rep.v[2][idx]   = vals.v[2];
+    rep.a[1,1][idx] = vals.a[1,1];
+    rep.a[2,1][idx] = vals.a[2,1];
+    rep.a[1,2][idx] = vals.a[1,2];
+    rep.a[2,2][idx] = vals.a[2,2];
+    nothing
+end
+=#
+
+
+#=projector_diags = [[ j*(length(asd["sites"])/get(asd,"bd",size(elTable,1))) < i <= (j+1)*(length(asd["sites"])/get(asd,"bd",size(elTable,1))) ? 1.0 : 0.0 for i=1:length(asd["sites"])] for j=0:(get(asd,"bd",size(elTable,1))-1)]
+for j=1:length(l_pjs)
+    for i=1:length(projector_diags[1])
+        l_pjs[j][i,i] = projector_diags[j][i]
+    end
+end=#
+
+#=for i=1:τ_dim
+for j=1:length(slv_partition[i])
+setindex!(slv_pjs[i], 1.0, slv_partition[i][j]...)
+end
+end=#
+
+#=
+@inbounds for i=eachindex(tbf.el_f)
+@inbounds for j=eachindex(tbf.el_f[i].index_domain)
+rep_assign_core(tbf.el_f[i].index_domain[j], tbf.h_ops, tbf.el_f[i](k))
+end
+end
+=#

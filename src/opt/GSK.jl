@@ -12,8 +12,7 @@ end
 
 function constreg(a,d,v,e)
     function(r)
-        α = norm(r)>1e-8 ? exp(-(norm(r)-a)/d) : 1.0
-        norm(r)>1e-10 ? (println(exp(-(norm(r)-a)/d)); v*α) : e
+        norm(r)>1e-10 ? v*a : e
     end
 end
 
