@@ -1,7 +1,7 @@
 using Documenter, Literate, SolidState, Hop
 
 # Make Documentation Source
-Literate.markdown("$(@__DIR__)/src/dev.jl","$(@__DIR__)/src")
+# Literate.markdown("$(@__DIR__)/src/dev.jl","$(@__DIR__)/src")
 
 # Make the Documentation Pages
 println("starting with docs!")
@@ -18,7 +18,7 @@ makedocs(;
     ),
     pages = [
         "Homepage" => "index.md",
-        "ReferenceCheck" => "dev.md"
+        # "ReferenceCheck" => "dev.md"
     ],
 )
 println("done with docs!")
