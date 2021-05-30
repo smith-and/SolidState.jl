@@ -605,4 +605,111 @@ function waterfall(f::Function; chnl::AbstractChannel, outdir=:none, kargs...)
     plt
 end
 
+##################################################
+#### Scaling Plots
+##################################################
+
+function dm_scaling(datafile::String, plotdir)
+    dm_scaling(; BSON.load(datafile)..., plotdir=plotdir)
+end
+
+function dm_scaling(dict::AbstractDict)
+    dm_scaling(; dict...)
+end
+
+function dm_scaling(; dims, avg, std, asd, datatype, plotdir, handle, avgx, fitd, dimx, kargs...)
+
+    ttl  = "dim scaling: $asd $datatype"
+
+    plt = plot(
+        legend = :topleft,
+        margin = 5Plots.mm,
+        xguide = "Hamiltonian Dimension",
+        yguide = "node days ()",
+        frame  = :box,
+        title  = ttl,
+        right_margin=5Plots.mm,
+    )
+    # ns/pt -> s/pt -> hr/pt -> hr -> days -> node days / core
+    units = 1.0 / 1e9 / 3600 * 5e5 / 24 / 128
+
+    scatter!(plt, dims, avg.*units, m=3, yerror=std.*units, label = "")
+    plot!(plt, dimx, avgx.*units, label = "" )
+
+
+    annotate!((dims[1]+1/3*(dims[end]-dims[1]),avgx[end-10]*units,Plots.text("T = τ dᵅ \n τ: $(round(fitd[:p][1]*units,sigdigits=4)) \n α: $(round(fitd[:p][2],sigdigits=4)) ")))
+
+    Plots.pdf(plt, "$plotdir/$handle.pdf")
+
+    plt
+
+end
+
+function core_scaling(dict)
+    core_scaling(; dict...)
+end
+
+function core_scaling(dict,plotdir)
+    core_scaling(;dict...,plotdir=plotdir)
+end
+
+function core_scaling(; avgs, wrk_samples, asd, datatype, comargs, cachedir, plotdir, pool = default_worker_pool(), kargs...)
+
+    plt = plot(
+            title = "Core Scaling",
+            xguide = "1/Ncores",
+            yguide = "Tₙ/T₀",
+            margin = 10Plots.mm
+        );
+    for (k,mn) ∈ enumerate(comargs)
+        avg = avgs[:,k]
+
+        hd  = data_import("$cachedir/$asd/hd-$(mn[1])-$(mn[2]).bson")
+        plt0 = plot( wrk_samples, avg,
+                title = "Worker Scaling - $(size(hd.h_ops.h,1))",
+                xguide = "Cores",
+                yguide = "Time(s)",
+                label  = "",
+                margin = 10Plots.mm,
+                color  = :red,
+                xlims  = (wrk_samples[1],wrk_samples[end]),
+                frame  = :box,
+            );
+        Plots.pdf(plt0, "$plotdir/$asd-$datatype-scaling-test-$(mn)")
+
+        plt1 = plot( 1 ./ wrk_samples, avg,
+                title = "Core Scaling - $(size(hd.h_ops.h,1)) ",
+                xguide = "1/Ncores",
+                yguide = "Time(s)",
+                label  = "",
+                margin = 10Plots.mm,
+                color  = :red,
+                frame  = :box
+            );
+        plot!(plt1, 1 ./ wrk_samples, max(avg...) ./ wrk_samples, label  = "",color=:black);
+        Plots.pdf(plt1, "$plotdir/core-scaling-$asd-$datatype-scaling-test-$(mn)-inv")
+
+        plot!(plt,  1 ./ wrk_samples, avg ./ max(avg...), label  = "$(size(hd.h_ops.h,1))", legend = :topleft);
+    end
+
+    plot!(plt, 1 ./ wrk_samples, 1 ./ wrk_samples, label  = "ref", color = :black, legend = :topleft);
+    Plots.pdf(plt,"$plotdir/core-scaling-$asd-$datatype-scaling-test-$(nworkers())")
+
+    plt
+end
+
+
+function mem_scaling()
+
+end
+
+function integral_convergence()
+
+end
+
+function resource_estimation()
+
+end
+
+
 end

@@ -137,7 +137,10 @@ end
 
 Makes the `ASD` and `HamiltonianDensity` data objects and saves them to bson files in the directory `cachedir="$(@__FILE__)/cache/asd"`.
 """
-function models(asd, comargs::Vector{Tuple{Int,Int}}, force=false, cachedir=ENV["cachedir"], kargs...)
+function models(asd::Symbol, comargs::Vector{Tuple{Int,Int}}, force=false, cachedir=ENV["cachedir"], kargs...)
+    models(eval(quote $asd end), comargs, force, cachedir, kargs...)
+end
+function models(asd::Function, comargs::Vector{Tuple{Int,Int}}, force=false, cachedir=ENV["cachedir"], kargs...)
         rootdir = isdir("$cachedir/$asd") ? "$cachedir/$asd" : mkpath("$cachedir/$asd");
         hs_asd    = asd()
         made_models = model_id.(readdir(rootdir))
@@ -308,6 +311,7 @@ Calculate the band structure of a model along the high symmetry points listed in
 """
 function bands(RN, asd, mn::Tuple{Int,Int}, pathlist=["K1","Γ","M1","K'1"], Npath = 300, scriptdir=ENV["scriptdir"], cachedirr=ENV["cachedir"], args...)
     #Compute Data
+    models(asd,[mn])
     ASD       = BSON.load(   "$cachedirr/$asd/asd-$(mn[1])-$(mn[2]).bson")
     hd        = data_import( "$cachedirr/$asd/hd-$(mn[1])-$(mn[2]).bson")
     dict = band_data(ASD,hd,pathlist,Npath; title = "$(round(180/π*SolidState.cθ(mn...),digits=3))ᵒ")
@@ -325,7 +329,7 @@ end
 function integral(RN, asd, mn, dtype::Type{T} where T <: SolidState.DataChart, indices, priors, base, Neval, pool=default_worker_pool(), cachedir=ENV["cachedir"], scriptdir=ENV["scriptdir"])
 
     println("Calculating Integral for $asd $(mn[1])-$(mn[2])");flush(stdout)
-
+    models(asd,[mn])
     di = DataIntegral(asd, mn, dtype, indices, priors, base)
 
     did = di(Neval)
@@ -341,7 +345,7 @@ end
 function section(RN, asd, mn, dtype, indices, priors, base, Neval, pool=default_worker_pool(), offset=(0.0,0.0), cachedir=ENV["cachedir"], scriptdir=ENV["scriptdir"])
 
     println("Calculation Section for $asd $(mn[1])-$(mn[2])");flush(stdout)
-
+    models(asd,[mn])
     args = Dict(
         :asd=>asd,
         :mn => mn,
@@ -366,45 +370,86 @@ end
 ######################################
 
 function dm_scaling(RN, asd, comargs, datatype, indices, priors, base)
+
         args = Dict(
                 :asd => asd,
                 :datatype => datatype,
                 :indices => indices,
                 :priors  => priors,
                 :base => base,
-                :comargs => twist_series(:bulkhead, comargs...),
+                :comargs => models(asd,twist_series(:bulkhead, comargs...)),
                 :cachedir => "$(ENV["cachedir"])",
                 :datadir => "$(ENV["scriptdir"])/out/$RN"|>mkpath,
                 :plotdir => "$(ENV["scriptdir"])/plot/$RN"|>mkpath
         )
+        SolidState.Scaling.dm_scaling(;args...)
+end
 
-        SolidState.Scaling.map_dim_scaling(;args...)
+function core_scaling(RN, asd, comargs, datatype, indices, priors, base, Neval)
+    args = Dict(
+            :asd => asd,
+            :datatype => datatype,
+            :indices => indices,
+            :priors  => priors,
+            :base => base,
+            :comargs => models(asd,twist_series(:bulkhead, comargs...)),
+            :cachedir => "$(ENV["cachedir"])",
+            :datadir => "$(ENV["scriptdir"])/out/$RN"|>mkpath,
+            :plotdir => "$(ENV["scriptdir"])/plot/$RN"|>mkpath,
+            :pool => default_worker_pool(),
+            :Neval => Neval
+    )
+
+    SolidState.Scaling.core_scaling(;args...)
+end
+
+function integral_convergence(RN, asd, comargs, datatype, f, sindices, priors, base, evals)
+    args = Dict(
+            :asd => asd,
+            :datatype => datatype,
+            :indices => indices,
+            :priors  => priors,
+            :base => base,
+            :comargs => models(asd,twist_series(:bulkhead, comargs...)),
+            :cachedir => "$(ENV["cachedir"])",
+            :datadir => "$(ENV["scriptdir"])/out/$RN"|>mkpath,
+            :plotdir => "$(ENV["scriptdir"])/plot/$RN"|>mkpath,
+            :pool => default_worker_pool(),
+            :f => f,
+            :evals => evals,
+    )
+
+    SolidState.Scaling.julia_worker_test(;args...)
 end
 
 function mem_scaling(RN, asd, comargs::Tuple{Int64,Int64}, datatype, indices, priors, base)
+
         args = Dict(
                 :asd => asd,
                 :datatype => datatype,
                 :indices => indices,
                 :priors  => priors,
                 :base => base,
-                :comargs => twist_series(:bulkhead, comargs...),
+                :comargs => models(asd,twist_series(:bulkhead, comargs...)),
                 :cachedir => "$(ENV["cachedir"])",
                 :datadir => "$(ENV["scriptdir"])/out/$RN"|>mkpath,
                 :plotdir => "$(ENV["scriptdir"])/plot/$RN"|>mkpath
         )
-
         SolidState.Scaling.mem_test(;args...)
 end
 
-function julia_worker_test(; asd, datatype, indices, priors, base, comargs, cachedir, datadir, plotdir, pool = default_worker_pool(), Neval, kargs...)
-
-end
-
-# function integral_convergence(; asd, datatype, indices, priors, base, f, comargs, cachedir, datadir, pool = default_worker_pool(), evals, kargs...)
 # function blas_julia_thread_tradeoff(; asd, datatype, indices, priors, base, comargs, cachedir, datadir, plotdir, pool = default_worker_pool(), Neval, blas_thread_max=length(pool), kargs...)
 # function blas_thread_map_test(; asd, datatype, indices, priors, base, comargs, cachedirr, scriptdir, blas_thread_max, kargs...)
 # function blas_thread_integral_test(asd, datatype, indices, priors, base, args...; comargs, scriptdir, blas_thread_max, Neval, pool, kargs...)
 
+###############################################################
+###### Extraction Methods
+###############################################################
+
+function extract(RN,name,plotfunction)
+    datafile = "$(ENV["scriptdir"])/out/$RN/$name.bson"
+    plotfunction(BSON.load(datafile))
+
+end
 
 end

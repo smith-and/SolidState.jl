@@ -123,7 +123,7 @@ module Scaling
         in `datadir` and the plot in `plotdir`. A powerlaw fit is performed and the scaling exponent and principal
         are included in the plot.
     """
-    function map_dim_scaling(; asd, datatype, indices, priors, base, comargs, cachedir, datadir, plotdir, kargs...)
+    function dm_scaling(; asd, datatype, indices, priors, base, comargs, cachedir, datadir, plotdir, kargs...)
         # Inputs
         modelcache = mkpath("$cachedir/$asd");
         mkpath(datadir);
@@ -154,48 +154,34 @@ module Scaling
         fitd = modelfit(dims,avg,powerlaw,[1e3,2.0,0.0])
         dimx = range(dims[1],dims[end],length=100)|>collect
         avgx = powerlaw(dimx,fitd[:p])
-        ttl  = "dim scaling: $asd $datatype"
 
-        plt = plot(
-            legend = :topleft,
-            margin = 5Plots.mm,
-            xguide = "Hamiltonian Dimension",
-            yguide = "time (ns)",
-            frame  = :box,
-            title  = ttl
-        )
 
-        plot!(plt, dims, avg, ribbon=std, label = "")
-        plot!(plt, dimx, avgx, label = "" )
-        annotate!((dims[1]+1/3*(dims[end]-dims[1]),avgx[end-10],Plots.text("T = τ dᵅ \n τ: $(round(fitd[:p][1],sigdigits=4)) \n α: $(round(fitd[:p][2],sigdigits=4)) ")))
-
-        Plots.pdf(plt, "$plotdir/dim-scaling-$asd-$datatype-bh-$(comargs|>length)-fit.pdf")
-        bson("$datadir/dim-scaling-$asd-$datatype-bh-$(comargs|>length)-fit.bson",Dict(:dims=>dims, :avg=>avg))
-
-        plt
+        bson("$datadir/dim-scaling-$asd-$datatype-bh-$(comargs|>length)-fit.bson",
+            Dict(
+                :dims=>dims,
+                :avg=>avg,
+                :std => std,
+                :asd => asd,
+                :datatype => datatype,
+                :comargs => comargs,
+                :plotdir => "$plotdir",
+                :handle => "dim-scaling-$asd-$datatype-bh-$(comargs|>length)-fit",
+                :fitd => fitd,
+                :dimx => dimx,
+                :avgx => avgx
+                )
+            )
     end
-
 
     #######################################
     #### Worker Number Parallelization Quality/Scaling
     #######################################
-    function julia_worker_test(; asd, datatype, indices, priors, base, comargs, cachedir, datadir, plotdir, pool = default_worker_pool(), Neval, kargs...)
+    function core_scaling(; asd, datatype, indices, priors, base, comargs, cachedir, datadir, plotdir, pool = default_worker_pool(), Neval, kargs...)
 
         wrk_samples = vcat([1], collect(2:2:(length(pool))))
 
         avg  = Vector{Float64}(undef, length(wrk_samples))
         avgs = Matrix{Float64}(undef,(length(wrk_samples),length(comargs)))
-
-        rootdir0 = mkpath("$datadir");
-        rootdir  = mkpath("$rootdir0/R$(length(readdir(rootdir0))+1)")
-        outdir   = mkpath("$rootdir/T0")
-
-        plt = plot(
-                title = "Core Scaling",
-                xguide = "1/Ncores",
-                yguide = "Tₙ/T₀",
-                margin = 10Plots.mm
-            );
 
         println("");flush(stdout)
         println("------Testing Parallel Scaling for $asd $datatype ------");flush(stdout)
@@ -204,7 +190,7 @@ module Scaling
             avg = Vector{Float64}(undef, length(wrk_samples))
             for (i,nw) ∈ enumerate(wrk_samples)
                 pool = WorkerPool(workers()[1:nw])
-                dm = DataMap(asd, datatype, indices, priors, base; cachedir=cachedir, mn=mn)
+                dm = DataMap(asd, mn, datatype, indices, priors, base)
 
                 ranges=SolidState.ChartInfo(datatype, indices, priors, base, mn)
                 if pool|>length|>isequal(1)
@@ -217,40 +203,21 @@ module Scaling
                 println("$nw worker(s): $(round(avg[i],sigdigits=5))s ");flush(stdout)
             end
 
-            hd  = data_import("$cachedir/$asd/hd-$(mn[1])-$(mn[2]).bson")
-            plt0 = plot( wrk_samples, avg,
-                    title = "Worker Scaling - $(size(hd.h_ops.h,1))",
-                    xguide = "Cores",
-                    yguide = "Time(s)",
-                    label  = "",
-                    margin = 10Plots.mm,
-                    color  = :red,
-                    xlims  = (wrk_samples[1],wrk_samples[end]),
-                    frame  = :box,
-                );
-            Plots.pdf(plt0, "$plotdir/$asd-$datatype-scaling-test-$(mn)")
-
-            plt1 = plot( 1 ./ wrk_samples, avg,
-                    title = "Core Scaling - $(size(hd.h_ops.h,1)) ",
-                    xguide = "1/Ncores",
-                    yguide = "Time(s)",
-                    label  = "",
-                    margin = 10Plots.mm,
-                    color  = :red,
-                    frame  = :box
-                );
-            plot!(plt1, 1 ./ wrk_samples, max(avg...) ./ wrk_samples, label  = "",color=:black);
-            Plots.pdf(plt1, "$rootdir/$asd-$datatype-scaling-test-$(mn)-inv")
-
-            plot!(plt,  1 ./ wrk_samples, avg ./ max(avg...), label  = "$(size(hd.h_ops.h,1))", legend = :topleft);
-            avgs[:,k] .= avg
         end
 
-        plot!(plt, 1 ./ wrk_samples, 1 ./ wrk_samples, label  = "ref", color = :black, legend = :topleft);
-        Plots.pdf(plt,"$(rootdir)/$asd-$datatype-scaling-test-$(nworkers())")
-        bson("$rootdir/$asd-$datatype-timings.bson",Dict(:comargs=>comargs,:times=>avgs,:wrks=>wrk_samples))
-
-        plt
+        bson("$datadir/core-scaling-$asd-$datatype-bh-$(comargs|>length)-fit.bson",
+            Dict(
+                :asd => asd,
+                :datatype => datatype,
+                :plotdir => plotdir,
+                :cachedir => cachedir,
+                :handle => "core-scaling-$asd-$datatype-bh-$(comargs|>length)-fit",
+                :comargs => comargs,
+                :avgs=>avgs,
+                :wrk_samples=>wrk_samples,
+                :Neval => Neval,
+                )
+            )
     end
 
     #######################################
