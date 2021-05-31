@@ -308,21 +308,19 @@ end
 ##################################################
 
 #Generic Plotting Method for Charts
-function integral(di::DataIntegral, f::Function=identity; args...)
-    plts = Vector{typeof(plot())}(undef,length(di.err))
-    for i∈1:length(di.err)
-        plts[i] = plot(
-            getindex.(getfield(di.dm.chart,1).base,1),
-            f.(di.data[i][:]),
-            ribbon = di.err[i],
-            xlims  = (getindex.(getfield(di.dm.chart,1).base,1)[1],getindex.(getfield(di.dm.chart,1).base,1)[end]),
+function integral(f=identity ; data::DataIntegral, args...)
+    plts = Vector{typeof(plot())}(undef,length(data.err))
+    for i∈1:length(data.err)
+        plts[i] = plot(getindex.(getfield(data.dm.chart,1).base,1), f.(data.data[i][:]);
+            ribbon = data.err[i],
+            xlims  = (getindex.(getfield(data.dm.chart,1).base,1)[1],getindex.(getfield(data.dm.chart,1).base,1)[end]),
             legend = :topleft,
-            label  = "$(di.evals[i])",
+            label  = "$(data.evals[i])",
             frame  = :box,
-            margins = 8Plots.mm;
-            ylims = (min(0.0,(f.(di.data[i][:]))...),1.1*max(f.(di.data[i][:])...,1e-15)),
+            margins = 8Plots.mm,
+            ylims = (min(0.0,(f.(data.data[i][:]))...),1.1*max(f.(data.data[i][:])...,1e-15)),
             args...
-        )
+            )
     end
 
     plts
@@ -333,13 +331,13 @@ end
 function integral!(plt::AbstractPlot, di::DataIntegral, f::Function, i::Int ; args...)
     plot!(plt,
         getindex.(getfield(di.dm.chart,1).base,1),
-        f.(di.data[i][:]),
+        f.(di.data[i][:]);
         ribbon = di.err[i],
         xlims  = (getindex.(getfield(di.dm.chart,1).base,1)[1],getindex.(getfield(di.dm.chart,1).base,1)[end]),
         legend = :topleft,
         label  = "$(di.evals[i])",
         frame  = :box,
-        margins = 8Plots.mm;
+        margins = 8Plots.mm,
         ylims = (min(0.0,(f.(di.data[i][:]))...),1.1*max(f.(di.data[i][:])...,1e-15)),
         args...
     )
@@ -631,7 +629,7 @@ function dm_scaling(; dims, avg, std, asd, datatype, plotdir, handle, avgx, fitd
         right_margin=5Plots.mm,
     )
     # ns/pt -> s/pt -> hr/pt -> hr -> days -> node days / core
-    units = 1.0 / 1e9 / 3600 * 5e5 / 24 / 128
+    units = 1.0 / 1e9 / 3600 * 5e4 / 24 / 128
 
     scatter!(plt, dims, avg.*units, m=3, yerror=std.*units, label = "")
     plot!(plt, dimx, avgx.*units, label = "" )

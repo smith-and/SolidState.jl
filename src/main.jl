@@ -332,10 +332,22 @@ function integral(RN, asd, mn, dtype::Type{T} where T <: SolidState.DataChart, i
     models(asd,[mn])
     di = DataIntegral(asd, mn, dtype, indices, priors, base)
 
-    did = di(Neval)
+    di(Neval)
 
-    outdir = mkpath("$scriptdir/out/$RN")
-    data_export("$outdir/$asd-$(mn[1])-$(mn[2]).bson",did)
+    bson("$(mkpath("$scriptdir/out/$RN"))/$asd-$(mn[1])-$(mn[2]).bson", Dict(
+        :mn => mn,
+        :asd => asd,
+        :dtype => dtype,
+        :indicess => indices,
+        :priors =>priors,
+        :base => base,
+        :Neval => Neval,
+        :scriptdir => scriptdir,
+        :cachedir => cachedir,
+        :plotdir => mkpath("$scriptdir/out/$RN"),
+        :handle => "$asd-$(mn[1])-$(mn[2])",
+        :data => di
+    ))
 end
 
 ######################################
@@ -385,6 +397,22 @@ function dm_scaling(RN, asd, comargs, datatype, indices, priors, base)
         SolidState.Scaling.dm_scaling(;args...)
 end
 
+function mem_scaling(RN, asd, comargs::Tuple{Int64,Int64}, datatype, indices, priors, base)
+
+        args = Dict(
+                :asd => asd,
+                :datatype => datatype,
+                :indices => indices,
+                :priors  => priors,
+                :base => base,
+                :comargs => models(asd,twist_series(:bulkhead, comargs...)),
+                :cachedir => "$(ENV["cachedir"])",
+                :datadir => "$(ENV["scriptdir"])/out/$RN"|>mkpath,
+                :plotdir => "$(ENV["scriptdir"])/plot/$RN"|>mkpath
+        )
+        SolidState.Scaling.mem_test(;args...)
+end
+
 function core_scaling(RN, asd, comargs, datatype, indices, priors, base, Neval)
     args = Dict(
             :asd => asd,
@@ -422,21 +450,7 @@ function integral_convergence(RN, asd, comargs, datatype, f, sindices, priors, b
     SolidState.Scaling.julia_worker_test(;args...)
 end
 
-function mem_scaling(RN, asd, comargs::Tuple{Int64,Int64}, datatype, indices, priors, base)
 
-        args = Dict(
-                :asd => asd,
-                :datatype => datatype,
-                :indices => indices,
-                :priors  => priors,
-                :base => base,
-                :comargs => models(asd,twist_series(:bulkhead, comargs...)),
-                :cachedir => "$(ENV["cachedir"])",
-                :datadir => "$(ENV["scriptdir"])/out/$RN"|>mkpath,
-                :plotdir => "$(ENV["scriptdir"])/plot/$RN"|>mkpath
-        )
-        SolidState.Scaling.mem_test(;args...)
-end
 
 # function blas_julia_thread_tradeoff(; asd, datatype, indices, priors, base, comargs, cachedir, datadir, plotdir, pool = default_worker_pool(), Neval, blas_thread_max=length(pool), kargs...)
 # function blas_thread_map_test(; asd, datatype, indices, priors, base, comargs, cachedirr, scriptdir, blas_thread_max, kargs...)
@@ -446,9 +460,9 @@ end
 ###### Extraction Methods
 ###############################################################
 
-function extract(RN,name,plotfunction)
+function extract(RN,name,plotfunction,args...)
     datafile = "$(ENV["scriptdir"])/out/$RN/$name.bson"
-    plotfunction(BSON.load(datafile))
+    plotfunction(args...; BSON.load(datafile)...)
 
 end
 
