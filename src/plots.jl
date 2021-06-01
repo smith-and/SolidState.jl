@@ -696,9 +696,12 @@ function core_scaling(; avgs, wrk_samples, asd, datatype, comargs, cachedir, plo
     plt
 end
 
+function mem_scaling(; com_dict, handle, plotdir, comargs, args...)
+    plt = scatter(getindex.(com_dict|>values|>collect,:dim),getindex.(com_dict|>values|>collect,:top),label="")
+    # SolidState.make_models(asd, comargs..., cachedir=cachedir)
+    Plots.pdf(plt,"$plotdir/$handle")
 
-function mem_scaling()
-
+    plt
 end
 
 function integral_convergence()

@@ -300,23 +300,9 @@ module Scaling
                 :com_dict => com_dict,
                 :handle => handle,
                 :comargs => comargs,
+                :plotdir => plotdir
             )
         )
-    end
-
-    function mem_scaling(; com_dict, handle, plotdir, comargs, args)
-        plt = scatter(getindex.(com_dict|>values|>collect,:dim),getindex.(com_dict|>values|>collect,:top),label="")
-        # SolidState.make_models(asd, comargs..., cachedir=cachedir)
-        Plots.pdf(plt,"$plotdir/$handle")
-
-        plt
-    end
-
-    function mem_test(asd, comargs::Tuple{Symbol,Int,Int})
-
-        cachedir = "$(@__DIR__)/../.cache"
-
-        mem_test(asd, SolidState.twist_series(comargs...), cachedir=cachedir)
     end
 
     #######################################
