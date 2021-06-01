@@ -190,7 +190,7 @@ module Scaling
             avg = Vector{Float64}(undef, length(wrk_samples))
             for (i,nw) ∈ enumerate(wrk_samples)
                 pool = WorkerPool(workers()[1:nw])
-                dm = DataMap(asd, mn, datatype, indices, priors, base)
+                dm = DataMap(asd, mn, datatype, indices, priors, base, cachedir=cachedir)
 
                 ranges=SolidState.ChartInfo(datatype, indices, priors, base, mn)
                 if pool|>length|>isequal(1)
@@ -294,17 +294,27 @@ module Scaling
 
         end
 
-        plt = scatter(getindex.(com_dict|>values|>collect,:dim),getindex.(com_dict|>values|>collect,:top))
-        plt|>display
-        Plots.pdf(plt,"$plotdir/$asd-mem-test")
-        bson("$datadir/$asd-mem_test.bson", com_dict)
+
+        handle = "mem-scaling-$asd-$datatype-bh-$(comargs|>length)"
+        bson("$datadir/$handle.bson", Dict(
+                :com_dict => com_dict,
+                :handle => handle,
+                :comargs => comargs,
+            )
+        )
+    end
+
+    function mem_scaling(; com_dict, handle, plotdir, comargs, args)
+        plt = scatter(getindex.(com_dict|>values|>collect,:dim),getindex.(com_dict|>values|>collect,:top),label="")
+        # SolidState.make_models(asd, comargs..., cachedir=cachedir)
+        Plots.pdf(plt,"$plotdir/$handle")
+
+        plt
     end
 
     function mem_test(asd, comargs::Tuple{Symbol,Int,Int})
 
         cachedir = "$(@__DIR__)/../.cache"
-
-        # SolidState.make_models(asd, comargs..., cachedir=cachedir)
 
         mem_test(asd, SolidState.twist_series(comargs...), cachedir=cachedir)
     end
