@@ -308,7 +308,7 @@ end
 ##################################################
 
 #Generic Plotting Method for Charts
-function integral(f=identity ; data::DataIntegral, args...)
+function integral(f=identity ; data::DataIntegral, plotdir, handle, args...)
     plts = Vector{typeof(plot())}(undef,length(data.err))
     for i∈1:length(data.err)
         plts[i] = plot(getindex.(getfield(data.dm.chart,1).base,1), f.(data.data[i][:]);
@@ -321,9 +321,11 @@ function integral(f=identity ; data::DataIntegral, args...)
             ylims = (min(0.0,(f.(data.data[i][:]))...),1.1*max(f.(data.data[i][:])...,1e-15)),
             args...
             )
+        Plots.pdf(plts[i],"$plotdir/$handle-err-$i")
     end
 
     plts
+
 end
 
 
@@ -697,7 +699,10 @@ function core_scaling(; avgs, wrk_samples, asd, datatype, comargs, cachedir, plo
 end
 
 function mem_scaling(; com_dict, handle, plotdir, comargs, args...)
-    plt = scatter(getindex.(com_dict|>values|>collect,:dim),getindex.(com_dict|>values|>collect,:top),label="")
+    plt = scatter(getindex.(com_dict|>values|>collect,:dim),getindex.(com_dict|>values|>collect,:top);
+        label="",
+        margin=8Plots.mm
+        )
     # SolidState.make_models(asd, comargs..., cachedir=cachedir)
     Plots.pdf(plt,"$plotdir/$handle")
 

@@ -460,10 +460,22 @@ end
 ###### Extraction Methods
 ###############################################################
 
+function load(RN,name)
+        BSON.load("$(ENV["scriptdir"])/out/$RN/$name.bson")
+end
+
 function extract(RN,name,plotfunction,args...)
     datafile = "$(ENV["scriptdir"])/out/$RN/$name.bson"
-    plotfunction(args...; BSON.load(datafile)...)
+    plotdir = "$(ENV["scriptdir"])/plot/$RN"|>mkpath
+    plotfunction(args...; BSON.load(datafile)..., plotdir=plotdir)
+end
 
+function b2_extract(RN,name,plotfunction,args...)
+    plotdir = "$(ENV["scriptdir"])/plot/$RN"|>mkpath
+    source = "$(ENV["b2scriptdir"])/out/$RN/$name.bson"
+    target = "$(mkpath("$(ENV["scriptdir"])/out/b2-$RN"))/$name.bson"
+    run(`rsync -r --progress asmithc@bridges2.psc.edu:$source $target`)
+    plotfunction(args...; BSON.load(target)..., plotdir=plotdir)
 end
 
 end

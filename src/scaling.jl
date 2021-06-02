@@ -305,6 +305,9 @@ module Scaling
         )
     end
 
+    # /ocean/projects/phy190028p/asmithc/scripts/out/scaling/dim-scaling-ASD2-SHG-bh-5-fit.bson
+    # /ocean/projects/phy190028p/asmithc/scripts/out/scaling/dim-scaling-ASD-SHG-bh-5-fit.bson
+
     #######################################
     #### BLAS Worker Tradeoff
     #######################################
