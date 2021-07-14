@@ -247,20 +247,8 @@ end
 @generated function evaluate_map(dm::DataMap, k::AbstractVector, section::T where T <: DataChart)
     name = fieldname(section,1)
     chart = fieldtypes(fieldtype(section,1))[end-3]
-    if chart <: MArray
-        quote
-            dm.K(k)
-            section.$name.data .= 0.0
-            $(Symbol(name,:(_evaluation)))(section.$name, dm.K.k_m, dm.K.hd.h_ops, dm.d)
-            SArray(section.$name.data)
-        end
-    else
-        quote
-            dm.K(k)
-            section.$name.data .= 0.0
-            $(Symbol(name,:(_evaluation)))(section.$name, dm.K.k_m, dm.K.hd.h_ops, dm.d)
-            copy(section.$name.data)
-        end
+    quote
+        $(Symbol(name,:(_evaluation)))(section.$name, dm.K, k, dm.d)
     end
 end
 

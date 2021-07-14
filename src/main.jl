@@ -108,6 +108,30 @@ function bulkhead_series(dmin,dmax)
         return θhullid[dmin .< θhullLM .< dmax][sortperm(θhullLM[dmin .< θhullLM .< dmax])]
 end
 
+### Commensurate Arg Plot
+function full_series(dmin,dmax)
+        #need way to relate these to the dcut
+        (mm,sm) = (200,200)
+        θid = [(m,m+s) for m∈-mm:mm for s∈-sm:sm]
+        θsp = [SolidState.cθ(m,m+s)*180/π for m∈-mm:mm for s∈-sm:sm]
+        θLM = [dimx((m,m+s)) for m∈-mm:mm for s∈-sm:sm]
+
+        LMmask= 0 .< θLM .< dmax
+        unqθ = (union(round.(θsp[LMmask],digits=4)))
+        θspargs = [findall(x->round(x,digits=4)==θ,θsp[LMmask]) for θ∈unqθ]
+        θLMcopies=getindex.(Ref(θLM[LMmask]),θspargs)
+        θidcopies=getindex.(Ref(θid[LMmask]),θspargs)
+
+        θhullid = Vector{typeof(θid[1])}(undef,length(unqθ))
+        θhullLM = Vector{typeof(θLM[1])}(undef,length(unqθ))
+        for (i,LMs) ∈ enumerate(θLMcopies)
+                θhullid[i] = θidcopies[i][argmin(LMs)]
+                θhullLM[i] = θLMcopies[i][argmin(LMs)]
+        end
+
+        return θhullid[dmin .< θhullLM .< dmax][sortperm(θhullLM[dmin .< θhullLM .< dmax])]
+end
+
 function twist_series(series,mmin,mmax)
         if series==:first
                 return first_series(mmin, mmax)
@@ -117,6 +141,8 @@ function twist_series(series,mmin,mmax)
                 return hull_series(mmin,mmax)
         elseif series==:bulkhead
                 return bulkhead_series(mmin,mmax)
+        elseif series==:full
+                return full_series(mmin,mmax)
         elseif series==:mn
                 return [(mmin,mmax)]
         end
@@ -232,6 +258,8 @@ function path_points(path_corners::Vector{Vector{Float64}}, N0::Int64)::Array{Ar
     path_positions
 end
 
+
+
 function findindex(pathlist,point)
     for i=1:length(pathlist)
         LinearAlgebra.norm(pathlist[i]-point) < 1e-10 ? (return i; break) : nothing
@@ -257,6 +285,12 @@ end
 function path_points(bz_pt_ledger::Dict{String,Array{Float64,1}}, path_list, N::Int64)::(Tuple{Array{Vector{Float64},2},Array{Array{Int64,1},1},Array{Array{Float64,1},1}})
     path_points([get.(Ref(bz_pt_ledger), path_corners, Ref([Inf,Inf])) for path_corners ∈ path_list], N)
 end
+
+function path_points(asd, path_list, N::Int64)#::(Tuple{Array{Vector{Float64},2},Array{Array{Int64,1},1},Array{Array{Float64,1},1}})
+    bz_pt_ledger = SolidState.ASDGeometry(asd)["bz_hs"]
+    path_points([get.(Ref(bz_pt_ledger), path_corners, Ref([Inf,Inf])) for path_corners ∈ path_list], N)
+end
+
 
 #Simple Band Structure
 function band_data(asd::Dict{String,Any}, hd::HamiltonianDensity, pathlist=["K1","Γ","M1","K'1"],Npath = 100; kargs...)
@@ -322,19 +356,322 @@ function bands(RN, asd, mn::Tuple{Int,Int}, pathlist=["K1","Γ","M1","K'1"], Npa
     "$scriptdir/out/$RN/$asd-$(mn[1])-$(mn[2]).bson"
 end
 
+"""
+    bands(asd::Symbol, mn::Tuple{Int,Int}, RN, pathlist=["K1","Γ","M1","K'1"], Npath = 300, scriptdir=ENV["scriptdir"], cachedirr=ENV["cachedir"], args...)
+
+Calculate the band structure of a model along the high symmetry points listed in
+"""
+function twistedbands(RN, asd, mn::Tuple{Int,Int}, pathlist=["K1","Γ","M1","K'1"], Npath = 300, scriptdir=ENV["scriptdir"], cachedirr=ENV["cachedir"], args...)
+    #Compute Data
+    models(asd,[mn])
+    ASD       = BSON.load(   "$cachedirr/$asd/asd-$(mn[1])-$(mn[2]).bson")
+    hd        = data_import( "$cachedirr/$asd/hd-$(mn[1])-$(mn[2]).bson")
+    dict = band_data(ASD,hd,pathlist,Npath; title = "$(round(180/π*SolidState.cθ(mn...),digits=3))ᵒ")
+
+    #Export Data
+    bson("$(mkpath("$scriptdir/out/$RN/"))/$asd-$(mn[1])-$(mn[2]).bson", deepcopy(dict))
+
+    "$scriptdir/out/$RN/$asd-$(mn[1])-$(mn[2]).bson"
+end
+
+"""
+    bands(asd::Symbol, mn::Tuple{Int,Int}, RN, pathlist=["K1","Γ","M1","K'1"], Npath = 300, scriptdir=ENV["scriptdir"], cachedirr=ENV["cachedir"], args...)
+
+Calculate the band structure of a model along the high symmetry points listed in
+"""
+function shiftedbands(RN, asd, (n1,n2,N)::Tuple{Int,Int,Int}, pathlist=["K1","Γ","M1","K'1"], Npath = 300, scriptdir=ENV["scriptdir"], cachedirr=ENV["cachedir"], args...)
+    #Compute Data
+    models(asd,[mn])
+    ASD       = BSON.load(   "$cachedirr/$asd/asd-$(mn[1])-$(mn[2]).bson")
+    hd        = data_import( "$cachedirr/$asd/hd-$(mn[1])-$(mn[2]).bson")
+    dict = band_data(ASD,hd,pathlist,Npath; title = "$(round(180/π*SolidState.cθ(mn...),digits=3))ᵒ")
+
+    #Export Data
+    bson("$(mkpath("$scriptdir/out/$RN/"))/$asd-$(mn[1])-$(mn[2]).bson", deepcopy(dict))
+
+    "$scriptdir/out/$RN/$asd-$(mn[1])-$(mn[2]).bson"
+end
+
+
+
+######################################
+#### Calculating Spectral Sections
+######################################
+
+function spectral_section(;RN,asd,mn,Nbz)
+    models(asd,[mn])
+
+    asdmn = BSON.load("$(ENV["scriptdir"])/.cache/$asd/asd-$(mn[1])-$(mn[2]).bson")
+    asdg = (asdmn|>SolidState.ASDGeometry)
+
+    hd = data_import("$(ENV["scriptdir"])/.cache/$asd/hd-$(mn[1])-$(mn[2]).bson")
+
+    K = KinematicDensity(hd,[(:T,0.0,0.0,1),(:μ,0.0,0.0,1),(:δ,0.02,0.02,1)])
+
+    dim = size(K.hd.h_ops.h,1)
+    vband = dim/2|>Int
+    cband = vband+1
+
+    patch_rng = range(-1.25*asdg["Kmag"],1.25*asdg["Kmag"], length=Nbz)
+
+    data = Dict(
+        :patch_rng => patch_rng,
+        :asdg => asdg,
+        :asd => asd,
+        :mn  => mn,
+        :dω  => zeros(Float64,(Nbz,Nbz)),
+        :re1 => zeros(Complex{Float64},(Nbz,Nbz)),
+        :re2 => zeros(Complex{Float64},(Nbz,Nbz)),
+        :Δ1  => zeros(Complex{Float64},(Nbz,Nbz)),
+        :Δ2  => zeros(Complex{Float64},(Nbz,Nbz)),
+    );
+
+    for (i,kx) in enumerate(patch_rng)
+        for (j,ky) in enumerate(patch_rng)
+            ij = i + (j-1)*Nbz
+            K([patch_rng[i],patch_rng[j]])
+            data[:re1][ij] = K.k_m.re[1][vband,cband]
+            data[:re2][ij] = K.k_m.re[2][vband,cband]
+            data[:dω][ij]  = K.k_m.dω[vband,cband]
+            data[:Δ1][ij]  = K.k_m.Δ[1][vband,cband]
+            data[:Δ2][ij]  = K.k_m.Δ[2][vband,cband]
+        end
+    end
+
+    datafile = "$(mkpath("$(ENV["scriptdir"])/out/$RN"))/$asd-$(mn[1])-$(mn[2])-$Nbz.bson"
+    bson(datafile,data)
+
+    datafile
+end
+
+function spectral_section(RN,asd,mn,Nbz)
+    spectral_section(;
+        RN=RN,
+        asd=asd,
+        mn=mn,
+        Nbz,
+    )
+end
+
+######################################
+#### Calculating DataIntegrals
+######################################
+
+
+function shg_section(;RN,asd,mn,Nbz)
+    models(asd,[mn])
+
+    asdmn = BSON.load("$(ENV["scriptdir"])/.cache/$asd/asd-$(mn[1])-$(mn[2]).bson")
+    asdg = (asdmn|>SolidState.ASDGeometry)
+
+    hd = data_import("$(ENV["scriptdir"])/.cache/$asd/hd-$(mn[1])-$(mn[2]).bson")
+
+    K = KinematicDensity(hd,[(:T,0.0,0.0,1),(:μ,0.0,0.0,1),(:δ,0.02,0.02,1)])
+
+    dim = size(K.hd.h_ops.h,1)
+    vband = dim/2|>Int
+    cband = vband+1
+
+    patch_rng = range(-1.25*asdg["Kmag"],1.25*asdg["Kmag"], length=Nbz)
+
+    data = Dict(
+        :patch_rng => patch_rng,
+        :asdg => asdg,
+        :asd => asd,
+        :mn  => mn,
+        :T1d  => zeros(Complex{Float64},(Nbz,Nbz)),
+        :T2d  => zeros(Complex{Float64},(Nbz,Nbz)),
+    );
+
+    for (i,kx) in enumerate(patch_rng)
+        for (j,ky) in enumerate(patch_rng)
+            ij = i + (j-1)*Nbz
+            K([patch_rng[i],patch_rng[j]])
+            data[:T1d][ij] = -im/(2.0*K.k_m.dω[cband,vband]^2)*(4*K.k_m.re[2][vband,cband]*(K.k_m.re[2][cband,vband]*K.k_m.Δ[2][cband,vband])+im*(K.hd.h_ops.a[2,2][cband,vband]*K.k_m.re[2][vband,cband]))
+            data[:T2d][ij] = K.k_m.re[2][vband,cband]
+        end
+    end
+
+    datafile = "$(mkpath("$(ENV["scriptdir"])/out/$RN"))/$asd-$(mn[1])-$(mn[2])-$Nbz.bson"
+    bson(datafile,data)
+
+    datafile
+end
+
+function shg_section(RN,asd,mn,Nbz)
+    shg_section(;
+        RN=RN,
+        asd=asd,
+        mn=mn,
+        Nbz,
+    )
+end
+
+
+######################################
+#### Calculating DataIntegrals
+######################################
+function shg_section_direct(asd,mn,Nbz)
+    SolidState.Main.models(asd,[mn])
+
+    asdmn = BSON.load("$(ENV["scriptdir"])/.cache/$asd/asd-$(mn[1])-$(mn[2]).bson")
+    asdg = (asdmn|>SolidState.ASDGeometry)
+
+    hd = data_import("$(ENV["scriptdir"])/.cache/$asd/hd-$(mn[1])-$(mn[2]).bson")
+    K = KinematicDensity(hd,[(:T,0.0,0.0,1),(:μ,0.0,0.0,1),(:δ,0.02,0.02,1)])
+
+    dim = size(K.hd.h_ops.h,1)
+    vband = dim/2|>Int
+    cband = vband+1
+
+    patch_rng = range(-1.25*asdg["Kmag"],1.25*asdg["Kmag"], length=Nbz)
+
+    data = Dict(
+        :patch_rng => patch_rng,
+        :asdg => asdg,
+        :asd => asd,
+        :mn  => mn,
+        :T1d  => zeros(Complex{Float64},(Nbz,Nbz)),
+        :T2d  => zeros(Complex{Float64},(Nbz,Nbz)),
+    );
+
+    for (i,kx) in enumerate(patch_rng)
+        for (j,ky) in enumerate(patch_rng)
+            ij = i + (j-1)*Nbz
+            K([patch_rng[i],patch_rng[j]])
+            data[:T1d][ij] = -im/(2.0*K.k_m.dω[cband,vband]^2)*(4*K.k_m.re[2][vband,cband]*(K.k_m.re[2][cband,vband]*K.k_m.Δ[2][cband,vband])+im*(K.hd.h_ops.a[2,2][cband,vband]*K.k_m.re[2][vband,cband]))
+            data[:T2d][ij] = 2*(K.k_m.re[2][cband,vband]/K.k_m.dω[cband,vband]^2)*(4*K.k_m.re[2][vband,cband]*K.k_m.Δ[2][vband,cband]+im*K.hd.h_ops.a[2,2][cband,vband])
+        end
+    end
+
+    datafile = "$(mkpath("$(ENV["scriptdir"])/out/$RN"))/$asd-$(mn[1])-$(mn[2])-$Nbz.bson"
+    bson(datafile,data)
+
+    datafile
+end
+
+function shg_section_direct(RN,asd,mn,Nbz)
+    shg_section_direct(;
+        RN=RN,
+        asd=asd,
+        mn=mn,
+        Nbz,
+    )
+end
+
+######################################
+#### Calculating Shifted SHG
+######################################
+
+function shifted_shg(RN,asd,Nevals,steps)
+    dtype = SHG
+    indices = [(2,2,2)]
+    priors = [(:T,0.0,0.0,1),(:μ,0.0,0.0,1),(:δ,0.02,0.02,1)]
+    base = [(:ω,0.0,10.0,1000)]
+
+    bdom    = getindex.(SolidState.range_scope(base),1)
+
+    asd0 = asd()
+    asdg = asd0|>SolidState.ASDGeometry
+
+    maxshift = asdg["Lmag"]*sqrt(3)
+    shiftrng = range(0.0,maxshift,length=steps)
+    configurations = [ [ [0.0,0.0,0.0], [n1,n2,0.0]] for n1 in shiftrng, n2 in shiftrng ][:]
+
+    data = Dict{Int,AbstractArray{ComplexF64}}()
+    for (i,shifts) in enumerate(configurations)
+        shifted_asd = SolidState.LayerShiftASD(deepcopy(asd0),shifts)
+        hd = TightBindingDensity(shifted_asd)
+        dm = DataMap(dtype,shifted_asd,hd,indices,priors,base)
+        di = DataIntegral(dm)
+        di(Nevals:Nevals)
+
+        data[i] = di.data[1][:]
+    end
+
+    bson("$(mkpath("$(ENV["scriptdir"])/out/$RN"))/shifted-$asd-$Nevals-$steps.bson",
+        Dict(
+            :asd => asd,
+            :Nevals => Nevals,
+            :steps => steps,
+            :bdom => bdom,
+            :configurations => configurations,
+            :data => data,
+            :ucvol => det(asd0["blv"])
+        )
+    )
+end
+
+######################################
+#### Shifted Sections
+######################################
+
+function shifted_shg_section(RN,asd,Nevals,steps)
+    dtype = SHG
+    indices = [(2,2,2)]
+    priors = [(:T,0.0,0.0,1),(:μ,0.0,0.0,1),(:δ,0.02,0.02,1)]
+    base = [(:ω,0.0,10.0,1000)]
+
+    bdom    = getindex.(SolidState.range_scope(base),1)
+
+    asd0 = SolidState.LayerShiftASD(asd(),[zeros(3),[n1/N*asdg["Lmag"]*sqrt(3),n2/N*asdg["Lmag"]*sqrt(3),0.0]])
+    asdg = asd0|>SolidState.ASDGeometry
+
+    hd = TightBindingDensity(asd0)
+    K = KinematicDensity(hd,[(:T,0.0,0.0,1),(:μ,0.0,0.0,1),(:δ,0.02,0.02,1)])
+
+    dim = size(K.hd.h_ops.h,1)
+    vband = dim/2|>Int
+    cband = vband+1
+
+    patch_rng = range(-1.25*asdg["Kmag"],1.25*asdg["Kmag"], length=Nbz)
+
+    data = Dict(
+        :patch_rng => patch_rng,
+        :asdg => asdg,
+        :asd => asd,
+        :mn  => mn,
+        :Td  => zeros(Complex{Float64},(Nbz,Nbz)),
+        :Tv  => zeros(Complex{Float64},(Nbz,Nbz)),
+    );
+
+    for (i,kx) in enumerate(patch_rng)
+        for (j,ky) in enumerate(patch_rng)
+            ij = i + (j-1)*Nbz
+            K([patch_rng[i],patch_rng[j]])
+            for m in 1:dim
+                for n in 1:dim
+                    nm = n + (m-1)*dim
+                    mn = m + (n-1)*dim
+                    data[:Td][ij] += Complex(0,-3.0)*K.k_m.df[1][nm]/(K.k_m.dω[nm]^3)*K.k_m.re[2][nm]*(K.k_m.re[2][mn]*K.k_m.Δ[3][mn]+Complex(0.0,K.h_ops.a[2,2][mn]))
+                    for l in 1:dim
+                        ln = l + (n-1)*dim
+                        ml = m + (l-1)*dim
+                        data[:Tv][ij] += K.k_m[2][nm]*(K.h_ops.E.values[l]*(1.0/K.k_m.dω[ln]+1.0/K.k_m.dω[ml]+1.0/K.k_m.dω[nm])+0.5)*(K.k_m.re[2][ml]*K.k_m.re[2][ln])
+                    end
+                end
+            end
+        end
+    end
+
+    datafile = "$(mkpath("$(ENV["scriptdir"])/out/$RN"))/shifted-shg-section-$asd-$(mnN[1])-$(mnN[2])-$(mnN[3])-$Nbz.bson"
+    bson(datafile,data)
+
+end
+
 ######################################
 #### Calculating DataIntegrals
 ######################################
 
 function integral(RN, asd, mn, dtype::Type{T} where T <: SolidState.DataChart, indices, priors, base, Neval, pool=default_worker_pool(), cachedir=ENV["cachedir"], scriptdir=ENV["scriptdir"])
 
-    println("Calculating Integral for $asd $(mn[1])-$(mn[2])");flush(stdout)
+    println("Calculating Integral for $asd $(mn[1])-$(mn[2]) with $Neval points");flush(stdout)
     models(asd,[mn])
     di = DataIntegral(asd, mn, dtype, indices, priors, base)
 
     di(Neval)
 
-    bson("$(mkpath("$scriptdir/out/$RN"))/$asd-$(mn[1])-$(mn[2]).bson", Dict(
+    bson("$(mkpath("$scriptdir/out/$RN"))/$asd-$(mn[1])-$(mn[2])-$dtype-$Neval.bson", Dict(
         :mn => mn,
         :asd => asd,
         :dtype => dtype,
@@ -345,9 +682,11 @@ function integral(RN, asd, mn, dtype::Type{T} where T <: SolidState.DataChart, i
         :scriptdir => scriptdir,
         :cachedir => cachedir,
         :plotdir => mkpath("$scriptdir/out/$RN"),
-        :handle => "$asd-$(mn[1])-$(mn[2])",
+        :handle => "$asd-$(mn[1])-$(mn[2])-$dtype-$Neval",
         :data => di
     ))
+
+    "$scriptdir/out/$RN/$asd-$(mn[1])-$(mn[2])-$dtype-$Neval.bson"
 end
 
 ######################################
@@ -389,7 +728,7 @@ function dm_scaling(RN, asd, comargs, datatype, indices, priors, base)
                 :indices => indices,
                 :priors  => priors,
                 :base => base,
-                :comargs => models(asd,twist_series(:bulkhead, comargs...)),
+                :comargs => comargs,
                 :cachedir => "$(ENV["cachedir"])",
                 :datadir => "$(ENV["scriptdir"])/out/$RN"|>mkpath,
                 :plotdir => "$(ENV["scriptdir"])/plot/$RN"|>mkpath
@@ -460,8 +799,22 @@ end
 ###### Extraction Methods
 ###############################################################
 
+function book_save(plotbook, plotdir)
+    for key ∈ keys(plotbook)
+        Plots.pdf(getindex(plotbook,key), "$plotdir/$key")
+    end
+end
+
 function load(RN,name)
         BSON.load("$(ENV["scriptdir"])/out/$RN/$name.bson")
+end
+
+function load(description::AbstractDict)
+    dict = Dict()
+    map(keys(description),values(description)) do name,RN
+        push!(dict,name=>load(RN,name))
+    end
+    dict
 end
 
 function extract(RN,name,plotfunction,args...)
@@ -471,7 +824,7 @@ function extract(RN,name,plotfunction,args...)
 end
 
 function b2_extract(RN,name,plotfunction,args...)
-    plotdir = "$(ENV["scriptdir"])/plot/$RN"|>mkpath
+    plotdir = "$(ENV["scriptdir"])/plot/b2-$RN"|>mkpath
     source = "$(ENV["b2scriptdir"])/out/$RN/$name.bson"
     target = "$(mkpath("$(ENV["scriptdir"])/out/b2-$RN"))/$name.bson"
     run(`rsync -r --progress asmithc@bridges2.psc.edu:$source $target`)

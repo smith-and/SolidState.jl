@@ -128,13 +128,15 @@ module Scaling
         modelcache = mkpath("$cachedir/$asd");
         mkpath(datadir);
 
-        dims = zeros(Float64,length(comargs))
-        avg  = zeros(Float64,length(comargs))
-        std  = zeros(Float64,length(comargs))
+        cargs = SolidState.Main.models(asd,SolidState.Main.twist_series(:bulkhead, comargs...))
+
+        dims = zeros(Float64,length(cargs))
+        avg  = zeros(Float64,length(cargs))
+        std  = zeros(Float64,length(cargs))
 
         println("");flush(stdout)
         println("Dimension Scaling $asd $datatype");flush(stdout)
-        for (i,mn) ∈ enumerate(comargs)
+        for (i,mn) ∈ enumerate(cargs)
             k = rand(2)
             asd0 = BSON.load("$modelcache/asd-$(mn[1])-$(mn[2]).bson")
             hd  = data_import("$modelcache/hd-$(mn[1])-$(mn[2]).bson")
@@ -156,7 +158,7 @@ module Scaling
         avgx = powerlaw(dimx,fitd[:p])
 
 
-        bson("$datadir/dim-scaling-$asd-$datatype-bh-$(comargs|>length)-fit.bson",
+        bson("$datadir/dim-scaling-$asd-$datatype-bh-$(comargs[1])-$(comargs[2]).bson",
             Dict(
                 :dims=>dims,
                 :avg=>avg,
@@ -165,7 +167,7 @@ module Scaling
                 :datatype => datatype,
                 :comargs => comargs,
                 :plotdir => "$plotdir",
-                :handle => "dim-scaling-$asd-$datatype-bh-$(comargs|>length)-fit",
+                :handle => "dim-scaling-$asd-$datatype-bh-$(comargs[1])-$(comargs[2])",
                 :fitd => fitd,
                 :dimx => dimx,
                 :avgx => avgx

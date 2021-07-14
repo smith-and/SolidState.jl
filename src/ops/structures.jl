@@ -86,6 +86,28 @@ function Control2LMz()
     )
 end
 
+export Control2LMzWG
+function Control2LMzWG()
+    a    = 1;   c    = 1; δ    = .1
+    vppπ = 1.0; vppσ = 0.1
+    ϵBB  = 4.0; ϵNN  = -4.0
+    cut  = 1.001*a
+    Dict(
+        "blv"       => [a 0 0 ; a/2 (sqrt(3)/2*a) 0 ; 0 0 2*c ] ,
+        "sk"        => Dict("Atom"=>1,"Layer"=>2,"Pos"=>3,"Spin"=>4,"Orbital"=>5,"Glyph"=>6,"Color"=>7),
+        "sites"     => [
+                        ("B", 1, [0.0, a/sqrt(3),  -c/2], (0//1,[1]), (1,[2]), :circle,  :blue),
+                        ("N", 1, [0.0, -a/sqrt(3), -c/2], (0//1,[1]), (1,[2]), :circle, :orange),
+                        ("B", 2, [0.0, a/sqrt(3),   c/2], (0//1,[1]), (1,[2]), :circle,  :blue),
+                        ("N", 2, [0.0, -a/sqrt(3),  c/2], (0//1,[1]), (1,[2]), :circle, :orange)
+                        ],
+        "lbase"=>3, "cutoff" => cut,
+        "regulator" => "exp",
+        "scales"    => Control_Scales(a,c,δ,vppσ,vppπ,ϵBB,ϵNN),
+        "filling"   => 0.5
+    )
+end
+
 export Control2LMzZero
 function Control2LMzZero()
     a    = 1;   c    = 1; δ    = .1
@@ -201,7 +223,7 @@ export Control4LMz
 function Control4LMz()
     a    = 1;   c    = 1; δ    = .1
     vppπ = 1.0; vppσ = 0.1
-    ϵBB  = 0.0; ϵNN  = 0.0
+    ϵBB  = 4.0; ϵNN  = -4.0
     cut  = 1.001*c
     asd = Dict(
         "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 4*c],
@@ -361,6 +383,24 @@ function ASD2()
     merge(asd, WHA())
 end
 
+export ASD2CS
+function ASD2CS()
+    a = 0.2512
+    c = 0.333
+    asd = Dict(
+        "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 2*c],
+        "sk" => Dict("Atom" => 1, "Layer" => 2,"Pos" => 3,"Spin" => 4,"Orbital" => 5,"Glyph" => 6,"Color" => 7),
+        "sites" => [
+            ("B", 1, [0.0, a / sqrt(3), -c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 1, [0.0, -a / sqrt(3), -c / 2],(0 // 1, [1]), (1, [2]), :circle, :orange),
+            ("B", 2, [0.0, -a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 2, [0.0, a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :orange),
+        ],
+        "filling" => 0.5,
+    )
+    merge(asd, WHA())
+end
+
 export ASD2B
 function ASD2B()
     a = 0.2512
@@ -427,6 +467,36 @@ function ASD4()
             ("N", 2, [0.0, -a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :orange),
             ("B", 2, [0.0, -a / sqrt(3), 3c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
             ("N", 2, [0.0, a / sqrt(3), 3c / 2], (0 // 1, [1]), (1, [2]), :circle, :orange),
+        ],
+        "filling" => 0.5,
+    )
+    merge(asd, WHA())
+end
+
+export ASD4CS
+function ASD4CS()
+    a = 0.2512
+    c = 0.333
+    asd = Dict(
+        "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 4*c],
+        "sk" => Dict(
+            "Atom" => 1,
+            "Layer" => 2,
+            "Pos" => 3,
+            "Spin" => 4,
+            "Orbital" => 5,
+            "Glyph" => 6,
+            "Color" => 7,
+        ),
+        "sites" => [
+            ("B", 1, [0.0, -a / sqrt(3), -3c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 1, [0.0, a / sqrt(3), -3c / 2],  (0 // 1, [1]), (1, [2]), :circle, :orange),
+            ("B", 1, [0.0, a / sqrt(3), -c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 1, [0.0, -a / sqrt(3), -c / 2], (0 // 1, [1]), (1, [2]), :circle, :orange),
+            ("B", 2, [0.0, -a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 2, [0.0, a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :orange),
+            ("B", 2, [0.0, a / sqrt(3), 3c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 2, [0.0, -a / sqrt(3), 3c / 2], (0 // 1, [1]), (1, [2]), :circle, :orange),
         ],
         "filling" => 0.5,
     )

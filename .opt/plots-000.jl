@@ -109,21 +109,27 @@ function side_view_uc(asdg,i1,i2; weights = :none, colors = :auto, kargs...)
         ylims = (-box_size,box_size),
         xlims = (-box_size,box_size),
         label = "",
+        xguide = "$(face_symbol[i1]) (nm)",
+        yguide = "$(face_symbol[i2]) (nm)",
+#         bottom_margin = 5Plots.mm,
+#         top_margin = 5Plots.mm,
+        yrotation = 60,
+        xrotation = 20,
         color = site_colors,
         opacity = site_weights,
+        size = (300,300),
+        m = 5,
         kargs...
     )
-    # size = (300,300),
-    # m = 5,
 
     plot!(collect(eachslice(hcat(asdg["uc_c"]...,asdg["uc_c"][1]),dims=1))[[i1,i2]]...;
+        aspectratio=1.0,
         color=:black,
         label="",
         frame=:none,
-        aspectratio=1.0,
+        left_margin = 5Plots.mm,
+        size= (300,300)
     )
-    # left_margin = 5Plots.mm,
-    # size= (300,300)
 
 end
 
@@ -134,259 +140,6 @@ function crystalfaces(asd; kargs...)
         :yz => side_view_uc(asdg,2,3; kargs...),
         :xz => side_view_uc(asdg,1,3; kargs...),
     )
-end
-
-##################################################
-#### 3D Unit Cell Plot
-##################################################
-
-function unitcell3d(asd; kargs...)
-    asdb = asd|>SolidState.ASDBasics
-    asdg = asd|>SolidState.ASDGeometry
-    xtal = asdb["xtal"]
-
-    atom_colors = Dict(
-        "B" => RGB(1.0,0.0,0.0),
-        "N" => RGB(0.0,0.0,1.0)
-    )
-
-    site_colors = map(asdb["sld"]) do site
-        atom_colors[site[1][1]]
-    end
-
-    points  = hcat(getindex.(asd["sites"],3)...)
-
-    plt = plot(collect(eachslice(points,dims=1))...;
-        frame = :grid,
-        label = "",
-        ticks = :none,
-        seriestype=:scatter,
-        camera = (45,45),
-        aspectratio = 1,
-        color = site_colors,
-        xlims = (-2,2).*asdg["Lmag"],
-        ylims = (-2,2).*asdg["Lmag"],
-        zlims = (-2,2).*asdg["Lmag"],
-        kargs...
-        )
-
-    plt
-end
-
-
-##################################################
-#### Crystal Bond Line Plots
-##################################################
-
-struct BondLine{V <: AbstractArray}
-    a::V
-    b::V
-end
-
-function blshift!(bl::BondLine,v::AbstractArray)
-    bl.a .+= v
-    bl.b .+= v
-    bl
-end
-
-function blshift(bl0::BondLine,v::AbstractArray)
-    bl = deepcopy(bl0)
-    bl.a .+= v
-    bl.b .+= v
-    bl
-end
-
-function blrotate!(bl::BondLine,θ::Float64)
-    bl.a .= SolidState.R2D(1.0,θ)*bl.a
-    bl.b .= SolidState.R2D(1.0,θ)*bl.b
-    bl
-end
-
-function getline(bl::BondLine)
-    eachslice(hcat(bl.a,bl.b)',dims=2)|>collect
-end
-
-function plotline!(plt::AbstractPlot, bl::BondLine; kargs...)
-    plot!(plt, getline(bl)...;kargs...)
-end
-
-struct BondTree{BL <: BondLine, G<:AbstractArray}
-    branches::Vector{BL}
-    leafs::Vector{BL}
-    generators::G
-end
-
-function treeshift(bt0,shift)
-    bt = deepcopy(bt0)
-    blshift!.(bt.branches,Ref(shift))
-    blshift!.(bt.leafs,Ref(shift))
-    bt
-end
-
-function treeshift!(bt,shift)
-    blshift!.(bt.branches,Ref(shift))
-    blshift!.(bt.leafs,Ref(shift))
-    bt
-end
-
-function treerotate!(bt,θ)
-    blrotate!.(bt.branches,θ)
-    blrotate!.(bt.leafs,θ)
-    bt
-end
-
-function treerotate(bt0,θ)
-    bt = deepcopy(bt0)
-    blrotate!.(bt.branches,θ)
-    blrotate!.(bt.leafs,θ)
-    bt
-end
-
-function treeplot!(plt,bt::BondTree; kargs...)
-    plotline!.(Ref(plt),bt.branches;
-        label="",
-        aspectratio=1,
-        color=:black,
-        kargs...
-        )
-    plt
-end
-
-function grow(bt,nvec::AbstractArray)
-    push!.(Ref(bt.branches),blshift.(bt.leafs,Ref(bt.generators*nvec)))
-end
-
-function grow(bt,N::Int)
-    mesh = [ [n1,n2] for n1 in -N:N, n2 in -N:N]
-    grow.(Ref(bt),mesh)
-    bt
-end
-
-function basic_tree(asd,N)
-    asd0 = asd()
-    asdb = SolidState.ASDBasics(asd0)
-    xtal = asdb["xtal"][1][1:2,1:2]
-    slv = asdb["xtal"][2]
-    slv[1][1:2]
-    blength = (xtal[1,:]|>norm)/sqrt(3)/2
-
-    linesA = [BondLine([0.0,0.0],[reim(-blength*exp(im*2π*n/3+im*π/2))...]) for n in 0:2]
-    blshift!.(linesA,Ref(-slv[1][1:2]))
-    linesB = [BondLine([0.0,0.0],[reim(blength*exp(im*2π*n/3+im*π/2))...]) for n in 0:2]
-    blshift!.(linesB,Ref(slv[1][1:2]))
-    lines = vcat(linesA,linesB)
-
-    bt = BondTree(eltype(lines)[],lines,xtal')
-    grow(bt,N)
-    bt
-end
-
-function twist_plot(asd,θ,N)
-    bt = basic_tree(asd,N)
-    bt_1 = treerotate(bt,θ)
-    bt_2 = treerotate(bt,-θ)
-    plt = plot(
-        frame=:none,
-        aspectratio = 1,
-        )
-    treeplot!(plt,bt_1; color=:black);
-    treeplot!(plt,bt_2; color=:red);
-    plt
-end
-
-function shift_plot(asd,shifts,N)
-    bt = basic_tree(asd,N)
-    bt_1 = treeshift(bt,shifts[1])
-    bt_2 = treeshift(bt,shifts[2])
-    plt = plot(
-        frame=:none,
-        aspectratio = 1,
-        )
-    treeplot!(plt,bt_1; color=:black);
-    treeplot!(plt,bt_2; color=:red);
-    plt
-end
-
-
-function resize_box!(plt,box)
-    plot!(plt;
-        xlim = (-box,box),
-        ylim = (-box,box),
-        )
-end
-
-##################################################
-#### Symmetric Unit Cell
-##################################################
-
-const SO3Defining = [ [ 0 0 0 ;
-  0 0 -1 ;
-  0 1 0 ], [  0 0 1 ;
-   0 0 0 ;
-  -1 0 0 ], [ 0 -1 0 ;
-  1 0 0 ;
-  0 0 0 ],
-]
-
-axisangle(θ,n) = exp(θ.*sum(n.*SO3Defining))
-
-function group_generate(G0)
-        G = deepcopy(G0)
-        for g∈G0, h∈G
-                if (Ref(h*g) .- G).|>norm.|>(x->x>1e-8)|>all
-                        push!(G,h*g)
-                end
-        end
-        if length(G)==length(G0)
-                return G0
-        else
-                group_generate(G)
-        end
-end
-
-function parallel_project(bt0,direction)
-    bt = deepcopy(bt0)
-    filter!(bt.branches) do branch
-        bond = branch.a .- branch.b
-        abs(acos(dot(direction,bond)/(norm(bond)*norm(direction)))) < 1e-5
-    end
-    bt
-end
-
-function branch_parallel_Q(branch,direction)
-    bond = branch.a .- branch.b
-    abs(acos(dot(direction,bond)/(norm(bond)*norm(direction)))) < 1e-5
-end
-
-function branch_vertical_Q(branch)
-    (abs(branch.a[1] -  branch.b[1]) < 1e-5) && (abs(branch.a[2]-branch.b[2]) < 1e-5)
-end
-
-function plane_bonds(asd)
-    asdg = asd|>SolidState.ASDGeometry
-    boundaryQ = SolidState.BoundaryEdgeQ((asdg["uc_c"]...,asdg["uc_c"][1],asdg["uc_c"][2]))
-    bt = BondTree(typeof(BondLine(rand(3),rand(3)))[],typeof(BondLine(rand(3),rand(3)))[],zeros(3,3))
-    for (i,site1) in enumerate(getindex.(asd["sites"],3))
-        for site2 in getindex.(asd["sites"],3)
-            if boundaryQ((site1+site2)/2) && (abs(site1[3]-site2[3]) < 1e-5)
-                push!(bt.branches,BondLine(copy(site1),copy(site2)))
-            end
-        end
-    end
-    bt
-end
-
-function vertical_bonds(asd)
-    asdg = asd|>SolidState.ASDGeometry
-    bt = BondTree(typeof(BondLine(rand(3),rand(3)))[],typeof(BondLine(rand(3),rand(3)))[],zeros(3,3))
-    for (i,site1) in enumerate(getindex.(asd["sites"],3))
-        for site2 in getindex.(asd["sites"],3)
-            push!(bt.branches,BondLine(copy(site1),copy(site2)))
-        end
-    end
-    btz = parallel_project(bt,[0.0,0.0,1.0])
-
-    btz
 end
 
 ##################################################
@@ -814,7 +567,11 @@ end
 #### Plotting for Data Integral
 ##################################################
 
-function spectral_section(; plotdir, asd,mn,asdg,patch_rng,dω,re1,re2,Δ1,Δ2,kargs...)
+function spectral_section(data)
+    spectral_section(; data...)
+end
+
+function spectral_section(; asd,mn,asdg,patch_rng,dω,re1,re2,Δ1,Δ2,kargs...)
 
     plts = Dict{Symbol,typeof(plot())}()
 
@@ -907,126 +664,17 @@ function spectral_section(; plotdir, asd,mn,asdg,patch_rng,dω,re1,re2,Δ1,Δ2,k
         margins = 1Plots.mm
         )
 
-    SolidState.Main.book_save(plts,"$plotdir/$asd-$(mn[1])-$(mn[2])"|>mkpath)
+    SolidState.Main.book_save(plts,"$(ENV["scriptdir"])/plot/spectral-section-test/$asd-$(mn[1])-$(mn[2])"|>mkpath)
 
     plts
 end
-
-#############################################
-#### SHG Direct Sections
-#############################################
-function insetplot_example()
-    p=plot()
-    plot!(rand(100))
-    bar!(rand(5), inset_subplots = [(1, bbox(0.7,0.025,0.3,0.3))], subplot=2, label="")
-    bar!(p[2],-rand(5), label="")
-end
-
-function shg_section(args=(frame=:none,); plotdir, asd,mn,asdg,patch_rng,T1d,T2d,kargs...)
-
-    θ = round(SolidState.cθ(mn...)*180/π,digits=2)
-
-    plts = Dict{Symbol,typeof(plot())}()
-
-    plts[:T1d] = heatmap(patch_rng,patch_rng,abs.(T1d)';
-        color = :bilbao,
-        aspectratio = 1,
-        frame = :none,
-        xlims = (patch_rng[1],patch_rng[end]),
-        ylims = (patch_rng[1],patch_rng[end]),
-        title = "$(θ)ᵒ T1d",
-        args...
-        );
-
-    plot!([getindex.(asdg["bz_c"],1)...,asdg["bz_c"][1][1]],[getindex.(asdg["bz_c"],2)...,asdg["bz_c"][1][2]],
-        label="",
-        color = :black,
-        linestyle=:dot
-        )
-
-    plts[:T2d] = heatmap(patch_rng,patch_rng,abs.(T2d)';
-        color = :bilbao,
-        aspectratio = 1,
-        frame = :none,
-        xlims = (patch_rng[1],patch_rng[end]),
-        ylims = (patch_rng[1],patch_rng[end]),
-        title = "$(θ)ᵒ T1d",
-        args...
-        # title = "rₑ₁"
-        );
-
-    # plot!([getindex.(asdg["bz_c"],1)...,asdg["bz_c"][1][1]],[getindex.(asdg["bz_c"],2)...,asdg["bz_c"][1][2]],
-    #     label="",
-    #     color = :black,
-    #     linestyle=:dot
-    #     )
-
-    plts[:T1d_phase] = heatmap(patch_rng,patch_rng,angle.(T1d)',
-        color = :twilight,
-        aspectratio = 1,
-        frame = :none,
-        xlims = (patch_rng[1],patch_rng[end]),
-        ylims = (patch_rng[1],patch_rng[end]),
-        # title = "dω"
-        );
-
-    plot!([getindex.(asdg["bz_c"],1)...,asdg["bz_c"][1][1]],[getindex.(asdg["bz_c"],2)...,asdg["bz_c"][1][2]],
-        label="",
-        color = :black,
-        linestyle=:dot
-        )
-
-    plts[:T2d_phase] = heatmap(patch_rng,patch_rng,angle.(T2d)',
-        color = :twilight,
-        aspectratio = 1,
-        frame = :none,
-        xlims = (patch_rng[1],patch_rng[end]),
-        ylims = (patch_rng[1],patch_rng[end]),
-        # title = "rₑ₁"
-        );
-
-    plot!([getindex.(asdg["bz_c"],1)...,asdg["bz_c"][1][1]],[getindex.(asdg["bz_c"],2)...,asdg["bz_c"][1][2]],
-        label="",
-        color = :black,
-        linestyle=:dot
-        )
-
-    SolidState.Main.book_save(plts,"$plotdir/$asd-$(mn[1])-$(mn[2])"|>mkpath)
-
-    plts
-end
-
-function shifted_shg(; RN, asd, Nevals, steps, kargs...)
-    cache = BSON.load("$(ENV["scriptdir"])/out/$RN/shifted-$asd-$Nevals-$steps.bson")
-    data = cache[:data]
-    bdom = cache[:bdom]
-    plt = plot()
-    rmax = 0.0
-    map(values(data)|>collect) do spectra
-        plot!(plt,bdom,abs.(spectra),label="")
-        rmax = max(rmax,abs.(spectra[1]))
-    end
-
-    lens!([0.0,0.5], [0.0,2rmax],
-        inset = (1, bbox(0.7, 0.0, 0.3, 0.4)),
-        yrot = 60
-        )
-    mkpath("$(ENV["scriptdir"])/plot/$RN")
-    Plots.pdf(plt, "$(ENV["scriptdir"])/plot/$RN/shifted-$asd-$Nevals-$steps")
-    plt
-end
-
-function shifted_shg(RN,asd,Nevals,steps, kargs...)
-    shifted_shg(RN=RN,asd=asd,Nevals=Nevals,steps=steps)
-end
-
 
 ##################################################
 #### Plotting for Data Integral
 ##################################################
 
 #Generic Plotting Method for Charts
-function integral(f, args; data::DataIntegral, plotdir, handle, kargs...)
+function integral(f=identity ; data::DataIntegral, plotdir, handle, args...)
     plts = Vector{typeof(plot())}(undef,length(data.err))
     for i∈1:length(data.err)
         plts[i] = plot(getindex.(getfield(data.dm.chart,1).base,1), f.(data.data[i][:]);
@@ -1212,6 +860,69 @@ end
 ### Plotting for a Series of Data Integral
 ###########################################
 
+function angle_dep(chnl::AbstractChannel; f::Function, rng, kargs...)
+    (bmin,bmax) = rng
+    println("Plotting Angle Dependence")
+    #Prepare Data
+    angles = getindex.(chnl.data,:angle)
+    base = getindex.(getfield(chnl.data[1][:data].chart,1).base,1)
+    hm_data = Matrix{Float64}(undef,length.((base,angles)))
+    for (i,dict) ∈ enumerate(chnl.data)
+        hm_data[:,i] .= f.(dict[:data].data[1][:])./dict[:ucvol]
+    end
+
+    #Plot
+    d_max = max(hm_data[bmin .< base .< bmax, :]...)
+    anim = Animation()
+    plt_all = plot(;
+        frame = :box,
+        # margin=10Plots.mm,
+        xlim=(angles[2],angles[end]),
+        # title = "Angle Dependence",
+        # xaxis = "twist angle (deg.)",
+        kargs...
+        )
+
+    for (i,b) ∈ enumerate(base)
+        if bmin < b < bmax
+            Plots.plot!(plt_all, angles,hm_data[i,:];
+                color = get(reverse(cgrad(:rainbow)),(b-bmin)/(bmax-bmin)),
+                label = "",
+                kargs...
+            )
+        end
+    end
+
+    plt_all
+end
+
+function cutheatmapf(chnl::AbstractChannel; f::Function, outdir=:none, xlims, kargs...)
+    println("Plotting Heatmap")
+    angles = getindex.(chnl.data,:angle)
+    base = getindex.(getfield(chnl.data[1][:data].chart,1).base,1)
+    hm_data = Matrix{Float64}(undef,length.((base,angles)))
+
+    for (i,dict) ∈ enumerate(chnl.data)
+        hm_data[:,i] .= f.(dict[:data].data[1][:])./dict[:ucvol]
+    end
+
+
+    plt = Plots.heatmap(base[xlims[1] .< base .< xlims[2]],angles,hm_data[xlims[1] .< base .< xlims[2],:]';
+        color  = cgrad(:bilbao),
+        frame  = :box,
+        # margin = 10Plots.mm,
+        # yguide = "twist angle (degree)",
+        # xguide = "driving frequency (eV)",
+        kargs...
+    )
+    #display(plt)
+
+    (outdir != :none) && Plots.pdf(plt, "$(mkpath(outdir))/cutheatmap-$f")
+    (outdir != :none) && Plots.png(plt, "$(mkpath(outdir))/cutheatmap-$f")
+
+    plt
+end
+
 function scaled_overlay(f::Function; chnl::AbstractChannel, outdir=:none, kargs...)
     println("Plotting Scaled Overlay")
     plt = plot(; frame = :box, legend=:outertopright, kargs...)
@@ -1292,7 +1003,7 @@ function dm_scaling(; dims, avg, std, asd, datatype, plotdir, handle, avgx, fitd
     plot!(plt, dimx, avgx.*units, label = "" )
 
 
-    annotate!((dims[1]+1/3*(dims[end]-dims[1]),avgx[end-10]*units,Plots.text("T = τ dᵅ \n τ: $(round(fitd[:p][1]*units,sigdigits=4)) \n α: $(round(fitd[:p][2],sigdigits=4)) \n cost: $(round(sum(avg.*units),digits=3)) ")))
+    annotate!((dims[1]+1/3*(dims[end]-dims[1]),avgx[end-10]*units,Plots.text("T = τ dᵅ \n τ: $(round(fitd[:p][1]*units,sigdigits=4)) \n α: $(round(fitd[:p][2],sigdigits=4)) ")))
 
     Plots.pdf(plt, "$plotdir/$handle.pdf")
 

@@ -1,6 +1,6 @@
 module SolidState
     using Revise
-    using Distributed, Dates, OrderedCollections, BSON, Plots
+    using Distributed, Dates, OrderedCollections, BSON, Plots, PackageCompiler
     using LinearAlgebra, SharedArrays, StaticArrays
     using Mux, WebIO, Interact, InteractiveUtils
     using CubicSplines, Roots, SpecialFunctions, HCubature
@@ -31,10 +31,6 @@ module SolidState
     # Post Processing
     include("extraction.jl")
     include("plots.jl")
-    include("figures.jl")
-
-    # Report Processing
-    include("report.jl")
 
     # Submodule for different interactive apps
     include("apps.jl")

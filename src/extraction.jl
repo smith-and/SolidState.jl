@@ -54,7 +54,7 @@ end
 function import_charts(asd, RN; target_dir, kargs...)::AbstractChannel
     #Accumulate Information from the local directories
     chnl = Channel{Dict{Symbol,Any}}(100)
-    for (root, dirs, files) in walkdir("$target_dir/$asd/.out/$RN")
+    for (root, dirs, files) in walkdir("$target_dir/$asd/out/$RN")
         for file in files
             if occursin(".bson",file) && !occursin("error",file)
                 println("Added file: ")
@@ -103,7 +103,7 @@ end
 """
 function export_collection(chnl::AbstractChannel, asd, RN; target_dir, force = false, kargs...)
     println("-----Starting Collection Export")
-    target_dir = mkpath("$target_dir/$asd/.out/$RN");
+    target_dir = mkpath("$target_dir/$asd/out/$RN");
     if !isfile("$target_dir/$RN.bson") || force
         println("-----Exporting Collection")
         bson("$target_dir/$RN.bson",Dict(:chnl=>chnl))
@@ -136,7 +136,7 @@ Import collection data and make new collection if there is no collection.
   - target_dir: path of the directory to look for an extraction (and make if none)
 """
 function load(asd, RN; datadir=ENV["datadir"], mountdir=ENV["mountdir"], force=false, kargs...)
-    collection_path = "$datadir/$asd/.out/$RN/$RN.bson"
+    collection_path = "$datadir/$asd/out/$RN/$RN.bson"
     dir_extract(".plot", asd, RN; target_dir=datadir, mount_dir=mountdir)
     dir_extract(".out",  asd, RN; target_dir=datadir, mount_dir=mountdir)
 
@@ -153,7 +153,6 @@ function load(asd, RN; datadir=ENV["datadir"], mountdir=ENV["mountdir"], force=f
         end
     end
 end
-
 
 function load(RN,asd,mn)
     target = "$(ENV["scriptdir"])/out/$RN/$asd-$(mn[1])-$(mn[2]).bson"

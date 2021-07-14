@@ -185,19 +185,28 @@ end
     nothing
 
 end
+#
+# @inline function cartan_transform(h_bundle::HamiltonianOperators)
+#     try
+#         cartan!(h_bundle.h, h_bundle.E, h_bundle.eig_aux)
+#         cartan_frame(h_bundle.E, h_bundle, h_bundle.aux_matrix)
+#     catch
+#         let E = eigen!(Hermitian(h_bundle.h))
+#             h_bundle.E.values .= E.values
+#             h_bundle.E.vectors .= E.vectors
+#         end
+#
+#         cartan_frame(h_bundle.E, h_bundle, h_bundle.aux_matrix)
+#     end
+# end
 
 @inline function cartan_transform(h_bundle::HamiltonianOperators)
-    try
-        cartan!(h_bundle.h, h_bundle.E, h_bundle.eig_aux)
-        cartan_frame(h_bundle.E, h_bundle, h_bundle.aux_matrix)
-    catch
-        let E = eigen!(Hermitian(h_bundle.h))
-            h_bundle.E.values .= E.values
-            h_bundle.E.vectors .= E.vectors
-        end
-
-        cartan_frame(h_bundle.E, h_bundle, h_bundle.aux_matrix)
+    let E = eigen!(Hermitian(h_bundle.h))
+        h_bundle.E.values .= E.values
+        h_bundle.E.vectors .= E.vectors
     end
+
+    cartan_frame(h_bundle.E, h_bundle, h_bundle.aux_matrix)
 end
 
 ########################################
@@ -260,24 +269,23 @@ end
 
 # Constructor with density
 function KinematicDensity(hd::H where H <: HamiltonianDensity{Int64,F}, priors::Vector{Tuple{Symbol,F,F,Int64}}; style::Symbol=:normal) where F <: Number
-    inputs = ( hd, KinematicOperators(size(hd.h_ops.h,1),prod(getindex.(priors,4)); style=style), zeros(F, size(hd.h_ops.h)),(x->[x...]).(collect(Iterators.product([range(p[2],p[3],length=p[4]) for p∈priors]...))[:]) )
+    inputs = ( hd, KinematicOperators(size(hd.h_ops.h,1),prod(getindex.(priors,4)); style=style), zeros(Complex{F}, size(hd.h_ops.h)),(x->[x...]).(collect(Iterators.product([range(p[2],p[3],length=p[4]) for p∈priors]...))[:]) )
     KinematicDensity{typeof.(inputs)...}(inputs...)
 end
 
 function KinematicDensity(hd::H where H <: HamiltonianDensity{Int64,F}, priors::Vector{LinRange{F}}; style::Symbol=:normal) where F <: AbstractFloat
-    inputs = (hd, KinematicOperators(size(hd.h_ops.h,1),prod(length.(priors)); style=style), zeros(F, size(hd.h_ops.h)),(x->[x...]).(collect(Iterators.product(priors...))[:]))
+    inputs = (hd, KinematicOperators(size(hd.h_ops.h,1),prod(length.(priors)); style=style), zeros(Complex{F}, size(hd.h_ops.h)),(x->[x...]).(collect(Iterators.product(priors...))[:]))
     KinematicDensity{typeof.(inputs)...}(inputs...)
 end
 
 function KinematicDensity(hd::H where H <: HamiltonianDensity{Int64,F}, priors::Vector{Vector{F}}; style::Symbol=:normal) where F <: AbstractFloat
-    inputs = (hd, KinematicOperators(size(hd.h_ops.h,1),length(priors); style=style), zeros(typeof(priors[1][1]), size(hd.h_ops.h)),priors)
+    inputs = (hd, KinematicOperators(size(hd.h_ops.h,1),length(priors); style=style), zeros(eltype(hd.h_ops.h), size(hd.h_ops.h)),priors)
     KinematicDensity{typeof.(inputs)...}(inputs...)
 end
 
 function KinematicDensity(hd::HD where HD <: HamiltonianDensity, priors::Array{NTuple{N,Float64},N} where N; style::Symbol=:normal)
-    KinematicDensity(hd, KinematicOperators(size(hd.h_ops.h,1),length(priors); style=style), zeros(typeof(0.0),size(hd.h_ops.h)),((x->[x...]).(priors))[:])
+    KinematicDensity(hd, KinematicOperators(size(hd.h_ops.h,1),length(priors); style=style), zeros(Complex{typeof(0.0)},size(hd.h_ops.h)),((x->[x...]).(priors))[:])
 end
-
 
 # Fermi-Dirac Functions
 function indicator(x::F)::F where F <: AbstractFloat
@@ -297,48 +305,9 @@ end
 end
 
 
-@inline function rire_add(n::Int64, m::Int64, p::Int64, new_val::Complex{F}, va::AbstractArray{Complex{F},2}, vb::AbstractArray{Complex{F},2}, ra::AbstractArray{Complex{F},2}, rb::AbstractArray{Complex{F},2} ) where F <: AbstractFloat
-    if !(p==n||p==m)
-    @inbounds @fastmath    new_val +=(va[n,p]*rb[p,m]-rb[n,p]*va[p,m])
-    end
-end
-
-@inline function km_rire(rireab::AbstractArray{Complex{F},2}, wab::AbstractArray{Complex{F},2}, va::AbstractArray{Complex{F},2}, vb::AbstractArray{Complex{F},2}, ra::AbstractArray{Complex{F},2}, rb::AbstractArray{Complex{F},2}, Δb::AbstractArray{Complex{F},2}, Δa::AbstractArray{Complex{F},2}, inv_dω::AbstractArray{F,2})::Nothing where F <: AbstractFloat
-    dim = 0;
-    dim = size(inv_dω,1);
-    @inbounds @fastmath for m ∈ 1:dim
-        @inbounds @fastmath for n ∈ 1:dim
-            new_rire = Complex(0.0)
-            @inbounds @fastmath  for p ∈ 1:dim
-                rire_add(n,m,p,new_rire,va,vb,ra,rb)
-            end
-            rireab[n,m] = new_rire
-        end
-    end
-
-    rireab .+= ( ( (ra .* Δb) .+ (rb .* Δa) ) .+ (im .* wab) )
-    rireab .*= (-1 .* inv_dω ) ;
-
-    nothing
-end
-
-@inline function kinematic_ops(km::KinematicOperators, cfr::HamiltonianOperators, priors::Vector{Vector{F}}, inv_dω::AbstractArray{F,2}) where F <: AbstractFloat
-
-    for a ∈ 1:length(cfr.v)
-        @inbounds km.re[a]   .= -im .* (inv_dω) .* (cfr.v[a]);
-    end
-
-    for a ∈ 1:length(cfr.v)
-        for b ∈ 1:length(cfr.v)
-            @inbounds km_rire(km.rire[a,b], cfr.a[a,b], cfr.v[a], cfr.v[b], km.re[a], km.re[b], km.Δ[a], km.Δ[b], inv_dω)
-        end
-    end
-
-    nothing
-end
 
 
-@inline function kinematic_ops(km::KinematicOperators, cfr::HamiltonianOperators, priors::Vector{Vector{F}}, ϵs::Vector{F}, r_aux::AbstractArray{F,2}) where F <: AbstractFloat
+@inline function kinematic_ops(km::KinematicOperators, cfr::HamiltonianOperators, priors::Vector{Vector{F}}, ϵs::Vector{F}, r_aux::AbstractArray{Complex{F},2}) where F <: AbstractFloat
     #Calculates the Fermi Functions
 
     #Set some diagonals
@@ -366,9 +335,11 @@ end
             if i != j
                 idx = j+(i-1)*size(km.dω,1)
                 km.dω[idx]    = ϵs[j]-ϵs[i]
-                r_aux[idx] = 1.0 / km.dω[j,i]
+                r_aux[idx] = -im / km.dω[j,i]
                 km.Δ[1][idx]  = cfr.v[1][j,j] - cfr.v[1][i,i]
                 km.Δ[2][idx]  = cfr.v[2][j,j] - cfr.v[2][i,i]
+                km.re[1][idx] = r_aux[idx] * (cfr.v[1][idx]);
+                km.re[2][idx] = r_aux[idx] * (cfr.v[2][idx]);
                 @inbounds @fastmath for p=eachindex(priors)
                     km.df[p][idx] = km.df[p][j,j] - km.df[p][i,i]
                 end
@@ -376,8 +347,57 @@ end
         end
     end
 
-    #Assigns the rest of the operators in the section
-    kinematic_ops(km, cfr, priors, r_aux)
+    # Assigns the rest of the operators in the section
+    rire_ops(km, cfr, priors, r_aux)
+
+    nothing
+end
+
+
+
+
+@inline function kinematic_ops_fast(km::KinematicOperators, cfr::HamiltonianOperators, priors::Vector{Vector{F}}, ϵs::Vector{F}, r_aux::AbstractArray{Complex{F},2}) where F <: AbstractFloat
+    #Calculates the Fermi Functions
+
+    #Set some diagonals
+    idx=0
+    @inbounds @fastmath @simd for i=1:(size(km.dω,1)+1):length(km.dω)
+        idx+=1
+        km.dω[i]  = ϵs[idx]
+        r_aux[i] = 0.0
+        @inbounds @fastmath for p=eachindex(priors)
+            if priors[p][1]==0.0
+                if (ϵs[idx] - priors[p][2]) > 0.0
+                    km.df[p][i] = 0.0
+                else
+                    km.df[p][i] = 1.0
+                end
+            else
+                km.df[p][i] = 1.0/(1.0+exp((1.0/(8.617*(1e-5)*priors[p][1]))*(ϵs[idx] - priors[p][2])));
+            end
+        end
+    end
+
+    #Set the off diagonals
+    @inbounds @fastmath for i∈ eachindex(ϵs)
+         @inbounds @fastmath @simd for j∈ eachindex(ϵs)
+            if i != j
+                idx = j+(i-1)*size(km.dω,1)
+                km.dω[idx]    = ϵs[j]-ϵs[i]
+                r_aux[idx] = -im / km.dω[j,i]
+                km.Δ[1][idx]  = cfr.v[1][j,j] - cfr.v[1][i,i]
+                km.Δ[2][idx]  = cfr.v[2][j,j] - cfr.v[2][i,i]
+                km.re[1][idx] = r_aux[idx] * (cfr.v[1][idx]);
+                km.re[2][idx] = r_aux[idx] * (cfr.v[2][idx]);
+                @inbounds @fastmath for p=eachindex(priors)
+                    km.df[p][idx] = km.df[p][j,j] - km.df[p][i,i]
+                end
+            end
+        end
+    end
+
+    # Assigns the rest of the operators in the section
+    # rire_ops(km, cfr, priors, r_aux)
 
     nothing
 end
@@ -386,41 +406,188 @@ function (k_obs::KinematicDensity)(k::Vector{F}) where F <: Number #::Tuple{Kine
     k_obs.hd(k)
     cartan_transform(k_obs.hd.h_ops)
     kinematic_ops(k_obs.k_m, k_obs.hd.h_ops, k_obs.priors, k_obs.hd.h_ops.E.values, k_obs.aux_real)
+
+    nothing
+end
+
+function evaluate_km(k_obs::KinematicDensity, k::Vector{F}) where F <: Number #::Tuple{KinematicOperators{AbstractFloat},HamiltonianOperators}
+    k_obs.hd(k)
+    cartan_transform(k_obs.hd.h_ops)
+    kinematic_ops_fast(k_obs.k_m, k_obs.hd.h_ops, k_obs.priors, k_obs.hd.h_ops.E.values, k_obs.aux_real)
+
     nothing
 end
 
 ########################################
-#### Projection Operators
+#### [ri,re] matrix elements
 ########################################
 
-struct ProjectionOperators{AR <: AbstractArray, AC <: AbstractArray}
-    l_pjs::Array{AC,1}
-    sl_pjs::Array{AC,1}
-    structure::AR
-    vds::Array{AC,1}
-    l_pjs_0::Array{AC,1}
-    sl_pjs_0::Array{AC,1}
+@inline function rire_add(n::Int64, m::Int64, p::Int64, new_val::Complex{F}, va::AbstractArray{Complex{F},2}, vb::AbstractArray{Complex{F},2}, ra::AbstractArray{Complex{F},2}, rb::AbstractArray{Complex{F},2} ) where F <: AbstractFloat
+    if !(p==n||p==m)
+    @inbounds @fastmath    new_val +=(va[n,p]*rb[p,m]-rb[n,p]*va[p,m])
+    end
 end
 
-function ProjectionOperators(dim, projN, slv_prj_N)
-    ProjectionOperators(
-        [SharedArray(zeros(ComplexF64,(dim,dim)))   for _=1:projN],
-        [SharedArray(zeros(ComplexF64,(dim,dim)))   for _=1:slv_prj_N],
-        SharedArray(zeros(Float64,(dim,dim))),
-        [SharedArray(zeros(ComplexF64,(dim)))       for _=1:dim],
-        [SharedArray(zeros(ComplexF64,(dim,dim)))   for _=1:projN],
-        [SharedArray(zeros(ComplexF64,(dim,dim)))   for _=1:slv_prj_N]
+@inline function km_rire(rireab::AbstractArray{Complex{F},2}, wab::AbstractArray{Complex{F},2}, va::AbstractArray{Complex{F},2}, vb::AbstractArray{Complex{F},2}, ra::AbstractArray{Complex{F},2}, rb::AbstractArray{Complex{F},2}, Δb::AbstractArray{Complex{F},2}, Δa::AbstractArray{Complex{F},2}, inv_dω::AbstractArray{Complex{F},2})::Nothing where F <: AbstractFloat
+    dim = 0;
+    dim = size(inv_dω,1);
+    @inbounds @fastmath for m ∈ 1:dim
+        @inbounds @fastmath for n ∈ 1:dim
+            new_rire = Complex(0.0)
+            @inbounds @fastmath  for p ∈ 1:dim
+                rire_add(n,m,p,new_rire,va,vb,ra,rb)
+            end
+            rireab[n,m] = new_rire
+        end
+    end
+
+    rireab .+= ( ( (ra .* Δb) .+ (rb .* Δa) ) .+ (im .* wab) )
+    rireab .*= (-1 .* inv_dω ) ;
+
+    nothing
+end
+
+@inline function rire_ops(km::KinematicOperators, cfr::HamiltonianOperators, priors::Vector{Vector{F}}, inv_dω::AbstractArray{Complex{F},2}) where F <: AbstractFloat
+    #
+    # for a ∈ 1:length(cfr.v)
+    #     @inbounds km.re[a]   .= -im .* (inv_dω) .* (cfr.v[a]);
+    # end
+
+    for a ∈ 1:length(cfr.v)
+        for b ∈ 1:length(cfr.v)
+            @inbounds km_rire(km.rire[a,b], cfr.a[a,b], cfr.v[a], cfr.v[b], km.re[a], km.re[b], km.Δ[a], km.Δ[b], inv_dω)
+        end
+    end
+
+    nothing
+end
+
+
+
+########################################
+#### Projection Operators
+########################################
+abstract type ProjectionOperator end
+
+function init_sqoi(asd,names)
+    asdb = asd|>SolidState.ASDBasics
+    sqoi = Dict{Symbol, AbstractVector}(:asdb=>asdb,:names=>names)
+    map(names) do name
+        sqoi[name] = getfield.(asdb["sqo"],name)
+        sqoi[Symbol(:unq,name)] = sqoi[name]|>unique
+    end
+    sqoi
+end
+
+########################################
+#### Atom and Layer Projector
+########################################
+
+struct ProjectorSL{AC <: AbstractArray, BV <: AbstractVector, DA <: AbstractDict} <: ProjectionOperator
+    layer::AC
+    atom::AC
+    layer0::BV
+    atom0::BV
+    sqoi::DA
+end
+
+function ProjectorSL(dim, Nlayer, Natom, sqoi=Dict{Symbol,Any}())
+    ProjectorSL(
+        zeros(typeof(0.0),(dim,Nlayer)),
+        zeros(typeof(0.0),(dim,Natom)),
+        [(BitArray(undef,dim) .= 0 )   for _=1:Natom],
+        [(BitArray(undef,dim) .= 0 )   for _=1:Nlayer],
+        sqoi
     )
 end
 
-function ProjectionOperators(dim, pz::Array{Complex{Float64},2},pjs::Vector{Array{Complex{Float64},2}},slv_prjs::Vector{Array{Complex{Float64},2}})
-    ProjectionOperators(
-        SharedArray(pz),
-        SharedArray.(pjs),
-        SharedArray.(slv_prjs),
-        SharedArray(zeros(Float64,(dim,dim))),
-        [SharedArray(zeros(ComplexF64,(dim)))     for _=1:dim],
-        SharedArray.(pjs),
-        SharedArray.(slv_prjs)
+function init_proj!(p::ProjectorSL,name)
+    map(enumerate(p.sqoi[Symbol(:unq,name)])) do (i,a)
+        inds = (a.==p.sqoi[name])
+        getfield(p,Symbol(name,0))[i] .= inds
+        # proj = getfield(p,name)[i]
+        # proj[diagind(proj)[inds]] .= Complex(1.0)
+        # proj
+    end
+end
+
+function ProjectorSL(asd::Dict{String,Any})
+    sqoi = init_sqoi(asd,[:layer,:atom])
+    p = ProjectorSL(length(sqoi[:asdb]["sqo"]),length(sqoi[Symbol(:unq,:layer)]),length(sqoi[Symbol(:unq,:atom)]),sqoi)
+
+    init_proj!.(Ref(p),[:atom,:layer])
+    p
+end
+
+function eigenvec_weight_sl(evec,inds)
+    sum(abs2.(evec[inds]))
+end
+
+function calc_weights(hd,p::ProjectorSL,name)
+
+    dim = size(getfield(p,name),1)
+    Np = size(getfield(p,name),2)
+
+    for i in 1:dim
+        for j in 1:Np
+            getfield(p,name)[i + (j-1)*dim] = eigenvec_weight_sl(hd.h_ops.E.vectors[:,i], getfield(p,Symbol(name,0))[j])
+        end
+    end
+    getfield(p,name)
+end
+
+########################################
+#### Layer Parity Projector
+########################################
+
+struct ProjectorLP{AC <: AbstractArray, BV <: AbstractArray, DA <: AbstractDict} <: ProjectionOperator
+    layer::AC
+    layer0::BV
+    sqoi::DA
+end
+
+function ProjectorLP(dim, Nlayer, sqoi=Dict{Symbol,Any}())
+    ProjectorLP(
+        zeros(typeof(0.0),(dim,Nlayer)),
+        [zeros(typeof(Complex(0.0)),(dim,dim)) for _=1:Nlayer],
+        sqoi
     )
+end
+
+function init_proj!(p::ProjectorLP,name)
+    map(enumerate(p.sqoi[Symbol(:unq,name)])) do (i,a)
+        inds = (a.==p.sqoi[name])
+        getfield(p,Symbol(name,0))[i] .= inds
+        # proj = getfield(p,name)[i]
+        # proj[diagind(proj)[inds]] .= Complex(1.0)
+        # proj
+    end
+end
+
+function ProjectorLP(asd::Dict{String,Any})
+    names = [:layer]
+    sqoi = init_sqoi(asd,names)
+
+    p = ProjectorLP(length(sqoi[:asdb]["sqo"]),length.(getindex.(Ref(sqoi),Symbol.(:unq,names))...),sqoi)
+
+    init_proj!.(Ref(p),names)
+
+    p
+end
+
+function eigenvec_weight_lp(evec,op)
+    evec'*op*evec
+end
+
+function calc_weights(hd,p::ProjectorLP,name)
+
+    dim = size(getfield(p,name),1)
+    Np = size(getfield(p,name),2)
+
+    for i in 1:dim
+        for j in 1:Np
+            getfield(p,name)[i + (j-1)*dim] = eigenvec_weight_lp(hd.h_ops.E.vectors[:,i], getfield(p,Symbol(name,0))[j])
+        end
+    end
+    getfield(p,name)
 end
