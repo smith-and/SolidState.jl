@@ -683,7 +683,10 @@ function integral(RN, asd, mn, dtype::Type{T} where T <: SolidState.DataChart, i
         :cachedir => cachedir,
         :plotdir => mkpath("$scriptdir/out/$RN"),
         :handle => "$asd-$(mn[1])-$(mn[2])-$dtype-$Neval",
-        :data => di
+        :data => di.data,
+        :err  => di.err,
+        :evals => di.evals,
+        :base => getindex.(getfield(di.dm.chart,1).base,1),
     ))
 
     "$scriptdir/out/$RN/$asd-$(mn[1])-$(mn[2])-$dtype-$Neval.bson"

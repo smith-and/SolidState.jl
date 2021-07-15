@@ -1026,24 +1026,22 @@ end
 ##################################################
 
 #Generic Plotting Method for Charts
-function integral(f, args; data::DataIntegral, plotdir, handle, kargs...)
-    plts = Vector{typeof(plot())}(undef,length(data.err))
-    for i∈1:length(data.err)
-        plts[i] = plot(getindex.(getfield(data.dm.chart,1).base,1), f.(data.data[i][:]);
-            ribbon = data.err[i],
-            xlims  = (getindex.(getfield(data.dm.chart,1).base,1)[1],getindex.(getfield(data.dm.chart,1).base,1)[end]),
+function integral(f, args; evals, err, base, data, plotdir, handle, kargs...)
+    plts = Vector{typeof(plot())}(undef,length(err))
+    for i∈1:length(err)
+        plts[i] = plot(base, f.(data[i][:]);
+            ribbon = err,
+            xlims  = (base[1],base[end]),
             legend = :topleft,
-            label  = "$(data.evals[i])",
+            label  = "$(evals[i])",
             frame  = :box,
             margins = 8Plots.mm,
-            ylims = (min(0.0,(f.(data.data[i][:]))...),1.1*max(f.(data.data[i][:])...,1e-15)),
+            ylims = (min(0.0,(f.(data[i][:]))...),1.1*max(f.(data[i][:])...,1e-15)),
             args...
             )
         Plots.pdf(plts[i],"$plotdir/$handle-err-$i")
     end
-
     plts
-
 end
 
 
