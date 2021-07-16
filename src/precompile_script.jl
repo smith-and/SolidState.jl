@@ -1,6 +1,6 @@
 #Global Module Loading
 using Distributed
-
+addprocs(2)
 #Augment LOAD_PATH
 @everywhere using SolidState
 
