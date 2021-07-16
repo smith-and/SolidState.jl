@@ -667,9 +667,9 @@ function integral(RN, asd, mn, dtype::Type{T} where T <: SolidState.DataChart, i
 
     println("Calculating Integral for $asd $(mn[1])-$(mn[2]) with $Neval points");flush(stdout)
     models(asd,[mn])
-    di = DataIntegral(asd, mn, dtype, indices, priors, base)
+    di0 = DataIntegral(asd, mn, dtype, indices, priors, base)
 
-    di(Neval)
+    di = di0(Neval, pool)
 
     bson("$(mkpath("$scriptdir/out/$RN"))/$asd-$(mn[1])-$(mn[2])-$dtype-$Neval.bson", Dict(
         :mn => mn,
@@ -687,6 +687,7 @@ function integral(RN, asd, mn, dtype::Type{T} where T <: SolidState.DataChart, i
         :err  => di.err,
         :evals => di.evals,
         :base => getindex.(getfield(di.dm.chart,1).base,1),
+        :npool => length(pool)
     ))
 
     "$scriptdir/out/$RN/$asd-$(mn[1])-$(mn[2])-$dtype-$Neval.bson"

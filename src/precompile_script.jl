@@ -23,7 +23,7 @@ function precompile_main()
     args = (
         "compilation",
         ASD2,
-        (1,1),
+        (1,2),
         SHG,
         [(2,2,2)],
         [(:T,0.0,0.0,1),(:μ,0.0,0.0,1),(:δ,0.0,0.0,1)],

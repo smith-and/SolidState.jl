@@ -1026,7 +1026,7 @@ end
 ##################################################
 
 #Generic Plotting Method for Charts
-function integral(f, args; evals, err, base, data, plotdir, handle, kargs...)
+function integral(f; evals, err, base, data, plotdir, handle, kargs...)
     plts = Vector{typeof(plot())}(undef,length(err))
     for i∈1:length(err)
         plts[i] = plot(base, f.(data[i][:]);
@@ -1037,7 +1037,6 @@ function integral(f, args; evals, err, base, data, plotdir, handle, kargs...)
             frame  = :box,
             margins = 8Plots.mm,
             ylims = (min(0.0,(f.(data[i][:]))...),1.1*max(f.(data[i][:])...,1e-15)),
-            args...
             )
         Plots.pdf(plts[i],"$plotdir/$handle-err-$i")
     end

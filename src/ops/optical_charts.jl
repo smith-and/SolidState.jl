@@ -13,10 +13,7 @@ struct LP{TType <: TensorChart} <: OpticsChart
     lp::TType
 end
 
-function lp_evaluation(tc::TensorChart, K0::KinematicDensity, k::AbstractVector , dim_ℋ::Int64)
-    K0(k)
-    K = K0.k_m
-    H = K0.hd
+function lp_evaluation(tc::TensorChart,K::KinematicOperators, H::HamiltonianOperators, dim_ℋ::Int64)
     tc.data .= 0.0
     R   = Complex(0.0)
     for n ∈ 1:dim_ℋ
@@ -47,10 +44,7 @@ struct GE{TType <: TensorChart} <: OpticsChart
     ge::TType
 end
 
-function ge_evaluation(tc::TensorChart, K0::KinematicDensity, k::AbstractVector , dim_ℋ::Int64)
-    K0(k)
-    K = K0.k_m
-    H = K0.hd
+function ge_evaluation(tc::TensorChart,K::KinematicOperators, H::HamiltonianOperators, dim_ℋ::Int64)
     tc.data .= 0.0
     for n ∈ 1:dim_ℋ
         for m ∈ 1:dim_ℋ
@@ -91,14 +85,14 @@ struct SHG{TType <: TensorChart} <: OpticsChart
 end
 
 @inline function shg_Ri(dωmn::Float64, reanm::A, rebmn::A, recmn::A, Δbmn::A, Δcmn::A, rrbanm::A, rrabnm::A, rrcanm::A, rracnm::A, rrcbmn::A, rrbcmn::A)::Tuple{A,A} where A <: Complex{Float64}
-    @fastmath Complex(0.0,-0.5/(dωmn)^2).*(
+    @fastmath Complex(-0.5/(dωmn)^2,0.0).*(
         reanm*(rebmn*Δcmn + recmn*Δbmn) + dωmn*((rrcanm*rebmn + rrbanm*recmn) - 0.5*(rrabnm*recmn + rracnm*rebmn)),
         2.0*reanm*(dωmn*(rrcbmn + rrbcmn) - 2.0*(rebmn*Δcmn + recmn*Δbmn))
     )
 end
 
 @inline function shg_Re(dωml::Float64,dωln::Float64, reanm::C, rebml::C, rebln::C, recml::C, recln::C)::C where C <: Complex{Float64}
-    @fastmath return Complex((0.5/(dωln-dωml)),0.0)*reanm*(rebml*recln+recml*rebln)
+    @fastmath return Complex(0.0,(0.5/(dωln-dωml)))*reanm*(rebml*recln+recml*rebln)
 end
 
 function shg_evaluation(tc::TensorChart, K0::KinematicDensity, k::AbstractVector , dim_ℋ::Int64)
@@ -117,7 +111,7 @@ function shg_evaluation(tc::TensorChart, K0::KinematicDensity, k::AbstractVector
                     Re1 = Complex(0.0)
                     Re2 = Complex(0.0)
                     for l ∈ 1:dim_ℋ
-                        if (l!=n)&&(l!=m)
+                        if (l!=n)&&(l!=m)&&(-1e-4 < K.dω[l,n] < 1e-4)&&(-1e-4 < K.dω[l,n] < 1e-4)
                             @fastmath ml = m + (l-1)*dim_ℋ
                             @fastmath ln = l + (n-1)*dim_ℋ
                             @fastmath @inbounds Re2 += shg_Re(K.dω[ml],K.dω[ln],K.re[a][nm],K.re[b][ml],K.re[b][ln],K.re[c][ml],K.re[c][ln])
@@ -131,7 +125,7 @@ function shg_evaluation(tc::TensorChart, K0::KinematicDensity, k::AbstractVector
                     for (ib,(ω,)) ∈ enumerate(tc.base)
                         for (ip,(T,μ,δ)) ∈ enumerate(tc.priors)
                             @fastmath idx = ii + ((ip-1) + (ib-1)*tc.l_p)*tc.l_i
-                            @fastmath @inbounds tc.data[idx] += K.df[ip][mn]/ϵ*((Re1+Ri1)*(1.0/Complex(K.dω[mn]-ω,-δ))+(Re2+Ri2)*(1.0/Complex(K.dω[mn]-2ω,-2δ)))
+                            @fastmath @inbounds tc.data[idx] += K.df[ip][mn]*((Re1+Ri1)*(1.0/Complex(K.dω[mn]-ω,-δ))+(Re2+Ri2)*(1.0/Complex(K.dω[mn]-2ω,-2δ)))
                         end
                     end
                 end
@@ -141,6 +135,7 @@ function shg_evaluation(tc::TensorChart, K0::KinematicDensity, k::AbstractVector
     # tc.data.= tc.data./ϵ
     copy(tc.data)
 end
+
 
 ###############################
 ### Static Limit of SHG
@@ -175,10 +170,7 @@ function static_shg_virtual(re,dω,(b,c),(m,n),dim)
     z
 end
 
-function static_shg_evaluation(tc::TensorChart, K0::KinematicDensity, k::AbstractVector , dim_ℋ::Int64)
-    K0(k)
-    K = K0.k_m
-    H = K0.hd
+function static_shg_evaluation(tc::TensorChart,K::KinematicOperators, H::HamiltonianOperators, dim_ℋ::Int64)
     tc.data .= 0.0
     mn = 0 ; nm = 0 ; ln = 0 ; nl = 0 ; ml = 0 ; lm = 0 ;
     for n ∈ 1:dim_ℋ
@@ -207,32 +199,22 @@ end
 
 const ϵ = 55.26349406*(2π)^3/1e6 # 1/(MV⋅m)
 
-export SHG0
 struct SHG0{TType <: TensorChart} <: OpticsChart
     shg0::TType
 end
 
-@inline function shg_Td1(dω::AbstractArray, re::AbstractArray, Δ::AbstractArray, w::AbstractArray,(a,b,c),nm,mn)::ComplexF64
-    @fastmath Complex(0.0,-1/(2.0*dω[nm]^2))*(3.0/2.0*r[a][nm]*(Δ[c][nm]*re[b][mn] + Δ[b][nm]*re[c][mn]) + 0.5*Δ[a][nm]*(re[c][nm]*re[b][mn] + re[b][nm]*re[c][mn]) +Complex(0.0,0.5)*(w[a,c][nm]*re[b][mn]+w[a,b][nm]*re[c][mn]))
+@inline function shg_Ri0(dωmn::Float64, reanm::A, rebmn::A, recmn::A, Δbmn::A, Δcmn::A, rrbanm::A, rrabnm::A, rrcanm::A, rracnm::A, rrcbmn::A, rrbcmn::A)::Tuple{A,A} where A <: Complex{Float64}
+    @fastmath Complex(0.0,-0.5/(dωmn)^2).*(
+        reanm*(rebmn*Δcmn + recmn*Δbmn) + dωmn*((rrcanm*rebmn + rrbanm*recmn) - 0.5*(rrabnm*recmn + rracnm*rebmn)),
+        2.0*reanm*(dωmn*(rrcbmn + rrbcmn) - 2.0*(rebmn*Δcmn + recmn*Δbmn))
+    )
 end
 
-@inline function shg_Tv1(dω::AbstractArray, re::AbstractArray, Δ::AbstractArray, w::AbstractArray,(a,b,c),mn,nl,lm)::Tuple{ComplexF64,ComplexF64}
-    @fastmath Complex(0.0,1.0/(2.0*dω[nm]^2))*(re[a][lm]*(re[b]))
+@inline function shg_Re0(dωml::Float64,dωln::Float64, reanm::C, rebml::C, rebln::C, recml::C, recln::C)::C where C <: Complex{Float64}
+    @fastmath return Complex((0.5/(dωln-dωml)),0.0)*reanm*(rebml*recln+recml*rebln)
 end
 
-@inline function shg_Td2(dω::AbstractArray, re::AbstractArray, Δ::AbstractArray, w::AbstractArray,(a,b,c),nm,mn)::ComplexF64
-    @fastmath Complex(0.0,-2.0/dω[nm]^2)*re[a][nm]*(2re[b][nm]*Δ[c][nm] + 2re[c][nm]*Δ[b][nm] + Complex(0.0,1.0)*w[b,c][nm])
-end
-
-@inline function shg_Tv1(dω::AbstractArray, re::AbstractArray, Δ::AbstractArray, w::AbstractArray,(a,b,c),mn,nl,lm)::Tuple{ComplexF64,ComplexF64}
-    @fastmath Complex(0.0,1.0/(2.0*dω[nm]^2))*(re[a][lm]*(re))
-end
-
-
-function shg0_evaluation(tc::TensorChart, K0::KinematicDensity, k::AbstractVector , dim_ℋ::Int64)
-    evaluate_km(K0,k)
-    K = K0.k_m
-    H = K0.hd
+function shg0_evaluation(tc::TensorChart,K::KinematicOperators, H::HamiltonianOperators, dim_ℋ::Int64)
     tc.data .= 0.0
     mn = 0 ; nm = 0 ; ln = 0 ; nl = 0 ; ml = 0 ; lm = 0 ;
     for n ∈ 1:dim_ℋ
@@ -241,15 +223,18 @@ function shg0_evaluation(tc::TensorChart, K0::KinematicDensity, k::AbstractVecto
                 @fastmath mn = m + (n-1)*dim_ℋ
                 @fastmath nm = n + (m-1)*dim_ℋ
                 for (ii,(a,b,c)) ∈ enumerate(tc.indices)
-                    T1 = Complex(0.0)
-                    T2 = Complex(0.0)
-                    @fastmath @inbounds T1 += shg_Td1(  K.dω[mn],K.re[a][nm],K.re[b][mn],K.re[c][mn],K.Δ[b][mn])
-                    @fastmath @inbounds T2 += shg_Td2(  K.dω[mn],K.re[a][nm],K.re[b][mn],K.re[c][mn],K.Δ[b][mn])
+                    @fastmath @inbounds (Ri1,Ri2)   = shg_Ri(  K.dω[mn],K.re[a][nm],K.re[b][mn],K.re[c][mn],K.Δ[b][mn],K.Δ[c][mn],K.rire[b,a][nm],K.rire[a,b][nm],K.rire[c,a][nm],K.rire[a,c][nm],K.rire[c,b][mn],K.rire[b,c][mn])
+                    Re1 = Complex(0.0)
+                    Re2 = Complex(0.0)
                     for l ∈ 1:dim_ℋ
                         if (l!=n)&&(l!=m)
                             @fastmath ml = m + (l-1)*dim_ℋ
                             @fastmath ln = l + (n-1)*dim_ℋ
-                            @fastmath @inbounds R1 += shg_Tv1(K.dω[ml],K.dω[ln],K.re[a][nm],K.re[b][ml],K.re[b][ln],K.re[c][ml],K.re[c][ln])
+                            @fastmath @inbounds Re2 += shg_Re(K.dω[ml],K.dω[ln],K.re[a][nm],K.re[b][ml],K.re[b][ln],K.re[c][ml],K.re[c][ln])
+
+
+                            @fastmath @inbounds Re1 += shg_Re(K.dω[lm],K.dω[mn],K.re[a][nl],K.re[b][lm],K.re[b][mn],K.re[c][lm],K.re[c][mn])
+                            @fastmath @inbounds Re1 += shg_Re(K.dω[mn],K.dω[nl],K.re[a][lm],K.re[b][mn],K.re[b][nl],K.re[c][mn],K.re[c][nl])
                         end
                     end
                     for (ib,(ω,)) ∈ enumerate(tc.base)

@@ -316,7 +316,7 @@ function DataIntegral(asd, mn, datatype::Type{T} where T <: DataChart,indices,pr
     ASD = BSON.load("$cachedir/$asd/asd-$(mn[1])-$(mn[2]).bson")
     hd  = data_import("$cachedir/$asd/hd-$(mn[1])-$(mn[2]).bson")
     dm = DataMap(datatype,ASD,hd,indices,priors,base);
-    DataIntegral(dm,a,b; ranges=ChartInfo(datatype,indices,priors,base,mn),cachedir)
+    DataIntegral(dm,a,b; ranges=ChartInfo(datatype,indices,priors,base,mn),cachedir="$cachedir/$asd")
 end
 
 """
@@ -328,7 +328,7 @@ function DataIntegral(; asd, mn, dtype::Type{T} where T <: DataChart, indices, p
     asd0 = BSON.load("$cachedir/$asd/asd-$(mn[1])-$(mn[2]).bson")
     hd  = data_import("$cachedir/$asd/hd-$(mn[1])-$(mn[2]).bson")
     dm = DataMap(dtype,asd0,hd,indices,priors,base);
-    DataIntegral(dm,a,b; ranges=ChartInfo(dtype,indices,priors,base,mn),cachedir)
+    DataIntegral(dm,a,b; ranges=ChartInfo(dtype,indices,priors,base,mn),cachedir="$cachedir/$asd")
 end
 
 """
@@ -338,7 +338,7 @@ function DataIntegral(ci::ChartInfo, cachedir::String=ENV["cachedir"]; a::Abstra
     asd = BSON.load("$cachedir/asd-$(ci.mn[1])-$(ci.mn[2]).bson")
     hd  = data_import("$cachedir/hd-$(ci.mn[1])-$(ci.mn[2]).bson")
     dm = DataMap(datatype,asd,hd,indices,priors,base);
-    DataIntegral(dm,a,b; ranges=ci,cachedir)
+    DataIntegral(dm,a,b; ranges=ci,cachedir=cachedir)
 end
 
 """
@@ -412,8 +412,25 @@ function integrate(dm::DM where DM <: DataMap, a::AbstractVector, b::AbstractVec
     end
     err .= sqrt.(err)./(getfield(dm.chart,1).data|>length)
 
-    DataIntegral(dm,a,b,zeros(eltype(err),length(Nevals)),err,Int.(collect(Nevals).*nw),zeros(Int,length(Nevals)),data,ranges,cachedir=ENV["cachedir"])
+    di = DataIntegral(dm,a,b,ranges=ranges,cachedir=ENV["cachedir"])
+
+    push!.(Ref(di.err), err)
+    push!.(Ref(di.evals) , Int.(collect(Nevals).*nw))
+    push!.(Ref(di.data) , data)
+
+    di
 end
+#
+# dm::DM
+# a::AV
+# b::AV
+# times::EA
+# err::EA
+# evals::IA
+# bytes::IA
+# data::DA
+# chartinfo::CIT
+# cachedir::String
 
 function (di::DataIntegral)(evals::Union{AbstractRange,Vector{Int64}}, pool::Symbol = :none, atol = 1e-20, rtol = 1e-20)
     for eval ∈ evals
@@ -429,7 +446,7 @@ end
 # """
 function (di::DataIntegral)(evals::Int, pool::Symbol = :none, atol = 1e-20, rtol = 1e-20)::DataIntegral
     #integration line
-    stats = @timed(integrate(di.dm, di.a, di.b, pool; evals = evals, rtol=rtol, atol=atol, ranges=di.chartinfo, cachedirr=di.cachedir))
+    stats = @timed(integrate(di.dm, di.a, di.b, pool; evals = evals, rtol=rtol, atol=atol, ranges=di.chartinfo, cachedir=di.cachedir))
 
     #Store integration informaiton
     push!(di.evals, evals)
@@ -448,8 +465,8 @@ end
 # """
 #     (di::DataIntegral)(evals::Union{AbstractRange,Int}, pool::AbstractWorkerPool, atol = 1e-20, rtol = 1e-20)::DataIntegral
 # """
-function (di::DataIntegral)(evals::Union{AbstractRange,Int}, pool::AbstractWorkerPool, atol = 1e-20, rtol = 1e-20)::DataIntegral
-    integrate(di.dm, di.a, di.b, pool; evals = evals, rtol=rtol, atol=atol, ranges=di.chartinfo, cachedirr=di.cachedir)
+function (di::DataIntegral)(evals::Int64, pool::AbstractWorkerPool, atol = 1e-20, rtol = 1e-20)::DataIntegral
+    integrate(di.dm, di.a, di.b, pool; evals = evals:evals, rtol=rtol, atol=atol, ranges=di.chartinfo, cachedir=di.cachedir)
 end
 
 
