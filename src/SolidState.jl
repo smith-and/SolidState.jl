@@ -2,7 +2,6 @@ module SolidState
     using Revise
     using Distributed, Dates, OrderedCollections, BSON, Plots, PackageCompiler
     using LinearAlgebra, SharedArrays, StaticArrays
-    using Mux, WebIO, Interact, InteractiveUtils
     using CubicSplines, Roots, SpecialFunctions, HCubature
     using Base: Threads
 
@@ -33,6 +32,6 @@ module SolidState
     include("plots.jl")
 
     # Submodule for different interactive apps
-    include("apps.jl")
+    # include("apps.jl")
 
 end

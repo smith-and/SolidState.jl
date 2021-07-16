@@ -3,7 +3,6 @@ module Plot
 using Revise
 using Distributed, Dates, OrderedCollections, BSON, Plots
 using LinearAlgebra, SharedArrays, StaticArrays
-using Mux, WebIO, Interact, InteractiveUtils
 using CubicSplines, Roots, SpecialFunctions, HCubature
 using Base: Threads
 using ..SolidState
