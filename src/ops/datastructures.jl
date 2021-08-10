@@ -239,6 +239,22 @@ function DataMap(; asd, mn, dtype::(Type{T} where T <: DataChart), indices,prior
     DataMap(dim_h,Ω,Λ,K,chart)
 end
 
+"""
+    DataMap(pmodel,pchart; cachedir=ENV["cachedir"], Λ0=:auto, style=:normal, kargs...)
+
+"""
+function DataMap(pmodel,pchart; cachedir=ENV["cachedir"], Λ0=:auto, style=:normal, kargs...)
+    asd0 = SolidState.make_model(pmodel)
+    hd   = SolidState.make_tb_model(pmodel)
+    Λ = domain_map(Λ0,asd0)
+    Ω = asd0["blv"]|>det
+    (indices0,prange,brange) = input_process(asd0,hd,pchart[:indices],pchart[:priors],pchart[:base])
+    dim_h   = size(hd.h_ops.h,1)
+    K       = KinematicDensity(hd,prange)
+    chart = pchart[:dtype](TensorChart(indices0,prange,brange,Complex{Float64};style=style))
+
+    DataMap(dim_h,Ω,Λ,K,chart)
+end
 
 """
     @generated function evaluate_map(dm::DataMap, k::AbstractVector, section::T where T <: DataChart)

@@ -156,7 +156,6 @@ struct sqo{Int_Type <: Integer, Float_type <: Real }
     pos::Array{Float_type,1}
     spin::Array{Rational{Int_Type},1}
     orbital::Array{Int_Type,1}
-    glpyh::Symbol
 end
 
 ##ASD Manipulations
@@ -175,8 +174,6 @@ function ASDGeometry(ASD::Dict{String, Any})::Dict{String, Any}
         Lmag=sqrt(dot(xtal[1][1,:],xtal[1][1,:])/3);
 
         l_idx  = getindex.(ASD["sites"], Ref(ASD["sk"]["Layer"]));
-        glyphs = getindex.(ASD["sites"], Ref(ASD["sk"]["Glyph"]));
-        colors = getindex.(ASD["sites"], Ref(ASD["sk"]["Color"]));
         atom = getindex.(ASD["sites"], Ref(ASD["sk"]["Atom"]));
         layer = getindex.(ASD["sites"], Ref(ASD["sk"]["Layer"]));
         labels = string.(atom,layer)
@@ -203,8 +200,6 @@ function ASDGeometry(ASD::Dict{String, Any})::Dict{String, Any}
         "bz_c"  =>c6_star(C12*Λk[:,1]),
         "bz_hs" =>bz_high_symmetry,
         "layer" =>l_idx,
-        "glyph" =>glyphs,
-        "colors"=>colors,
         "labels"=>labels
         )
 end
@@ -218,12 +213,11 @@ function ASDBasics(ASD::Dict{String, Any})::Dict{String, Any}
     pos      = getindex.(ASD["sites"], Ref(ASD["sk"]["Pos"]))
     spins    = getindex.(ASD["sites"], Ref(ASD["sk"]["Spin"]))
     orbitals = getindex.(ASD["sites"], Ref(ASD["sk"]["Orbital"]))
-    glyphs   = getindex.(ASD["sites"], Ref(ASD["sk"]["Glyph"]))
     #Need to
     xtal=(ASD["blv"],pos);
     spinlabels=[[[sd[1],proj] for proj=range(-sd[1],sd[1];step=1)][sd[2]] for sd=spins ];
     orbitlabels=[[[sd[1],proj] for proj=range(-sd[1],sd[1];step=1)][sd[2]] for sd=orbitals ];
-    stateInfo=[[[sname[i],lidx[i],pos[i],spin,orbit,glyphs[i]] for spin=spinlabels[i], orbit=orbitlabels[i]] for i=1:length(spinlabels)]
+    stateInfo=[[[sname[i],lidx[i],pos[i],spin,orbit] for spin=spinlabels[i], orbit=orbitlabels[i]] for i=1:length(spinlabels)]
     sqoBasis::Array{sqo{Int64,Float64},1}=cat([cat([sqo(sqod...) for sqod=siteSQD]...,dims=2) for siteSQD=stateInfo]...,dims=2)[1,:];
     #need to convert the sites info to the single particle basis as list of sqo opjects
     Dict{String, Any}(

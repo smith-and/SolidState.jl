@@ -111,7 +111,7 @@ function shg_evaluation(tc::TensorChart, K0::KinematicDensity, k::AbstractVector
                     Re1 = Complex(0.0)
                     Re2 = Complex(0.0)
                     for l ∈ 1:dim_ℋ
-                        if (l!=n)&&(l!=m)&&(-1e-4 < K.dω[l,n] < 1e-4)&&(-1e-4 < K.dω[l,n] < 1e-4)
+                        if (l!=n)&&(l!=m)#&&(-1e-4 < K.dω[l,n] < 1e-4)&&(-1e-4 < K.dω[l,n] < 1e-4)
                             @fastmath ml = m + (l-1)*dim_ℋ
                             @fastmath ln = l + (n-1)*dim_ℋ
                             @fastmath @inbounds Re2 += shg_Re(K.dω[ml],K.dω[ln],K.re[a][nm],K.re[b][ml],K.re[b][ln],K.re[c][ml],K.re[c][ln])

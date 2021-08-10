@@ -250,12 +250,49 @@ function (wc::weightcover)(x::Tuple{Int64,Int64})::Tuple{Array{Complex{Float64},
     ((wc.regs[x[1]].(wc.covers[x[2]]))::Array{Complex{Float64},1},wc.covers[x[2]]::Vector{Vector{Float64}})
 end
 
+export form_model
+function form_model(asd,wha)
+    merge(asd,wha)
+end
+
+function form_model(asd,wha,p)
+    try
+        ASD = asd(;p...)
+        form_model(ASD,wha(ASD;p...))
+    catch
+        ASD = asd()
+        form_model(ASD,wha(ASD;p...))
+    end
+end
+
+function modify_asd(asd,key,val)
+    if :layer==key
+        LayerASD(asd,val)
+    elseif :shift==key
+        LayerShiftASD(asd,val)
+    elseif :twist==key
+        CommensurateASD(asd,val)
+    else
+        asd
+    end
+end
+
+function form_model(p::OrderedDict)
+    asd = form_model(p[:asd],p[:wha],p)
+    for key in keys(p)
+        asd = modify_asd(asd,key,p[key])
+    end
+    asd
+end
+
+
 function tb_info(asd)
 
     asdb=ASDBasics(asd);
     push!(asdb, "gsk"=>ASDGSK(asd))
     #atomic site orbital information
     (regs,asoIndexer)=asoInformation(asdb)
+
     #sublattice difference information
     (covers,dτIndexer)=sublatticeInformation(asdb)
     #constructing the unique product element and an index table for the two body representation
@@ -300,8 +337,29 @@ function tb_info(asd)
     (index_table, weights_unq, covers_unq, pz, l_pjs, slv_pjs)
 end
 
+function tb_info(asd,wha)
+    tb_info(merge(asd,wha))
+end
+
+function tb_info(asd, wha, p)
+    tb_info(form_model(asd,wha,p))
+end
+
+function TightBindingInfo(p::OrderedDict)
+    TightBindingInfo(tb_info(form_model(p))...)
+end
+
+
 function TightBindingInfo(asd)
     TightBindingInfo(tb_info(asd)...)
+end
+
+function TightBindingInfo(asd,wha)
+    TightBindingInfo(tb_info(asd,wha)...)
+end
+
+function TightBindingInfo(asd,wha,p)
+    TightBindingInfo(tb_info(asd,wha,p)...)
 end
 
 #type for information of a single matrix element for Bundle and Tangent Bundle and Stability Bundle.
@@ -409,8 +467,20 @@ function TightBindingDensity(tbi::TightBindingInfo; style=:normal)
 end
 
 #constructor for TightBindingDensity tight-binding function from the tight binding information, i.e. some static graph data for a model
+function TightBindingDensity(p::OrderedDict; style=:normal)
+    TightBindingDensity(TightBindingInfo(p),style = style)
+end
+
 function TightBindingDensity(asd::Dict{String,Any}; style=:normal)
     TightBindingDensity(TightBindingInfo(asd),style = style)
+end
+
+function TightBindingDensity(asd::Dict{String,Any}, wha::Dict{String,Any}; style=:normal)
+    TightBindingDensity(TightBindingInfo(asd,wha),style = style)
+end
+
+function TightBindingDensity(asd::Function, wha::Function, p::OrderedDict; style=:normal)
+    TightBindingDensity(TightBindingInfo(asd,wha,p),style = style)
 end
 
 #function assignment

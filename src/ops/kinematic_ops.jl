@@ -471,7 +471,7 @@ abstract type ProjectionOperator end
 
 function init_sqoi(asd,names)
     asdb = asd|>SolidState.ASDBasics
-    sqoi = Dict{Symbol, AbstractVector}(:asdb=>asdb,:names=>names)
+    sqoi = Dict{Symbol, Any}(:asdb=>asdb,:names=>names)
     map(names) do name
         sqoi[name] = getfield.(asdb["sqo"],name)
         sqoi[Symbol(:unq,name)] = sqoi[name]|>unique

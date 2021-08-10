@@ -26,6 +26,7 @@ module SolidState
 
     # Method Bridge to Bashing
     include("main.jl")
+    include("new_main.jl")
 
     # Post Processing
     include("extraction.jl")

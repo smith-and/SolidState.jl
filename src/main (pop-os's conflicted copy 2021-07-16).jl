@@ -266,18 +266,6 @@ function findindex(pathlist,point)
     return 0 #this is bad
 end
 
-function findcorners!(corner_indices, pathlist, corner_list)
-    j = 1
-    for i=1:length(pathlist)
-        for corner in unique(corner_list)
-            if norm(pathlist[i]-corner) < 1e-10
-                corner_indices[j]=i
-                j+=1
-            end
-        end
-    end
-end
-
 function path_points(path_list::Vector{Vector{Vector{Float64}}}, N::Int64)::(Tuple{Array{Vector{Float64},2},Array{Array{Int64,1},1},Array{Array{Float64,1},1}})
     paths           = Vector{Vector{Float64}}[];
     odometers       = Vector{Float64}[];
@@ -287,8 +275,7 @@ function path_points(path_list::Vector{Vector{Vector{Float64}}}, N::Int64)::(Tup
         push!(paths,    positions)
         push!(odometers, vcat([0.0],cumsum(LinearAlgebra.norm.(diff(positions)))))
         #println(indexin.(hash.(path_list[i]), Ref(hash.(positions))))
-        # corner_indices[i] .= findindex.(Ref(positions), path_list[i])
-        findcorners!(corner_indices[i], positions, path_list[i])
+        corner_indices[i] .= findindex.(Ref(positions), path_list[i])
     end
 
     hcat(paths...), corner_indices, odometers
@@ -355,19 +342,15 @@ end
 
 Calculate the band structure of a model along the high symmetry points listed in
 """
-function bands(RN, asd, mn::Tuple{Int,Int}, pathlist=["K1","Γ","M1","K'1"], Npath = 300, scriptdir=ENV["scriptdir"], cachedirr=ENV["cachedir"], args...;force = false)
+function bands(RN, asd, mn::Tuple{Int,Int}, pathlist=["K1","Γ","M1","K'1"], Npath = 300, scriptdir=ENV["scriptdir"], cachedirr=ENV["cachedir"], args...)
     #Compute Data
-    models(asd,[mn],force)
+    models(asd,[mn])
     ASD       = BSON.load(   "$cachedirr/$asd/asd-$(mn[1])-$(mn[2]).bson")
     hd        = data_import( "$cachedirr/$asd/hd-$(mn[1])-$(mn[2]).bson")
     dict = band_data(ASD,hd,pathlist,Npath; title = "$(round(180/π*SolidState.cθ(mn...),digits=3))ᵒ")
 
     #Export Data
-    bson("$(mkpath("$scriptdir/out/$RN/"))/$asd-$(mn[1])-$(mn[2]).bson",
-        Dict(
-                :dict=>dict
-        )
-    )
+    bson("$(mkpath("$scriptdir/out/$RN/"))/$asd-$(mn[1])-$(mn[2]).bson", deepcopy(dict))
 
     "$scriptdir/out/$RN/$asd-$(mn[1])-$(mn[2]).bson"
 end
@@ -579,17 +562,22 @@ end
 #### Calculating Shifted SHG
 ######################################
 
-function shifted_response(RN,asd,dtype,indices,priors,base,Nevals,rngs)
+function shifted_shg(RN,asd,Nevals,steps)
+    dtype = SHG
+    indices = [(2,2,2)]
+    priors = [(:T,0.0,0.0,1),(:μ,0.0,0.0,1),(:δ,0.02,0.02,1)]
+    base = [(:ω,0.0,10.0,1000)]
 
     bdom    = getindex.(SolidState.range_scope(base),1)
+
     asd0 = asd()
     asdg = asd0|>SolidState.ASDGeometry
 
     maxshift = asdg["Lmag"]*sqrt(3)
-    lc_z = asdg["xtal"][1][3,3]
-    configurations = [ [ -0.5*[n1,n2,n3], 0.5*[n1,n2,n3]] for n1 in (maxshift.*rngs[1]), n2 in (maxshift.*rngs[2]), n3 in (lc_z.*rngs[3])][:]
+    shiftrng = range(0.0,maxshift,length=steps)
+    configurations = [ [ [0.0,0.0,0.0], [n1,n2,0.0]] for n1 in shiftrng, n2 in shiftrng ][:]
 
-    data = Array{Vector{ComplexF64}}(undef,length(configurations))
+    data = Dict{Int,AbstractArray{ComplexF64}}()
     for (i,shifts) in enumerate(configurations)
         shifted_asd = SolidState.LayerShiftASD(deepcopy(asd0),shifts)
         hd = TightBindingDensity(shifted_asd)
@@ -600,11 +588,11 @@ function shifted_response(RN,asd,dtype,indices,priors,base,Nevals,rngs)
         data[i] = di.data[1][:]
     end
 
-    bson("$(mkpath("$(ENV["scriptdir"])/out/$RN"))/shifted-$asd-$Nevals"*"$(string(("-".*string.(rngs))...)).bson",
+    bson("$(mkpath("$(ENV["scriptdir"])/out/$RN"))/shifted-$asd-$Nevals-$steps.bson",
         Dict(
             :asd => asd,
             :Nevals => Nevals,
-            :rngs => rngs,
+            :steps => steps,
             :bdom => bdom,
             :configurations => configurations,
             :data => data,
@@ -617,7 +605,12 @@ end
 #### Shifted Sections
 ######################################
 
-function shifted_response_section(RN,asd,dtype,indices,priors,base,Nevals,steps)
+function shifted_shg_section(RN,asd,Nevals,steps)
+    dtype = SHG
+    indices = [(2,2,2)]
+    priors = [(:T,0.0,0.0,1),(:μ,0.0,0.0,1),(:δ,0.02,0.02,1)]
+    base = [(:ω,0.0,10.0,1000)]
+
     bdom    = getindex.(SolidState.range_scope(base),1)
 
     asd0 = SolidState.LayerShiftASD(asd(),[zeros(3),[n1/N*asdg["Lmag"]*sqrt(3),n2/N*asdg["Lmag"]*sqrt(3),0.0]])
@@ -669,7 +662,7 @@ end
 #### Calculating DataIntegrals
 ######################################
 
-function integral(RN, asd, mn, dtype::Type{T} where T <: SolidState.DataChart, indices, priors, base, Neval, pool=default_worker_pool(), cachedir=ENV["cachedir"], scriptdir=ENV["scriptdir"]; force=false)
+function integral(RN, asd, mn, dtype::Type{T} where T <: SolidState.DataChart, indices, priors, base, Neval, pool=default_worker_pool(), cachedir=ENV["cachedir"], scriptdir=ENV["scriptdir"])
 
     println("Calculating Integral for $asd $(mn[1])-$(mn[2]) with $Neval points");flush(stdout)
     models(asd,[mn])
@@ -780,7 +773,7 @@ function core_scaling(RN, asd, comargs, datatype, indices, priors, base, Neval)
     SolidState.Scaling.core_scaling(;args...)
 end
 
-function integral_convergence(RN, asd, comargs, datatype, f, sindices, priors, base, evals)
+function integral_convergence(RN, asd, comargs, datatype, f, indices, priors, base, evals)
     args = Dict(
             :asd => asd,
             :datatype => datatype,
@@ -796,7 +789,7 @@ function integral_convergence(RN, asd, comargs, datatype, f, sindices, priors, b
             :evals => evals,
     )
 
-    SolidState.Scaling.julia_worker_test(;args...)
+    SolidState.Scaling.integral_convergence(;args...)
 end
 
 

@@ -172,164 +172,140 @@ function unitcell3d(asd; kargs...)
     plt
 end
 
-################################################################
-# Edges of a Graph
-################################################################
-struct EdgeLine{V <: AbstractArray, P <: AbstractDict}
+
+##################################################
+#### Crystal Bond Line Plots
+##################################################
+
+struct BondLine{V <: AbstractArray}
     a::V
     b::V
-    prop::P
 end
 
-function EdgeLine(a,b)
-    EdgeLine(a,b,Dict())
+function blshift!(bl::BondLine,v::AbstractArray)
+    bl.a .+= v
+    bl.b .+= v
+    bl
 end
 
-function blshift!(el::EdgeLine,v::AbstractArray)
-    el.a .+= v
-    el.b .+= v
-    el
+function blshift(bl0::BondLine,v::AbstractArray)
+    bl = deepcopy(bl0)
+    bl.a .+= v
+    bl.b .+= v
+    bl
 end
 
-function blshift(el0::EdgeLine,v::AbstractArray)
-    el = deepcopy(el0)
-    el.a .+= v
-    el.b .+= v
-    el
+function blrotate!(bl::BondLine,θ::Float64)
+    bl.a .= SolidState.R2D(1.0,θ)*bl.a
+    bl.b .= SolidState.R2D(1.0,θ)*bl.b
+    bl
 end
 
-function blrotate!(el::EdgeLine,θ::Float64)
-    el.a .= SolidState.R2D(1.0,θ)*el.a
-    el.b .= SolidState.R2D(1.0,θ)*el.b
-    el
+function getline(bl::BondLine)
+    eachslice(hcat(bl.a,bl.b)',dims=2)|>collect
 end
 
-################################################################
-# Verticies of a Graph
-################################################################
-struct VertexPoint{V <: AbstractArray, P <: AbstractDict}
-    a::V
-    prop::P
+function plotline!(plt::AbstractPlot, bl::BondLine; kargs...)
+    plot!(plt, getline(bl)...;kargs...)
 end
 
-function vpshift!(vp::VertexPoint,v::AbstractArray)
-    vp.a .+= v
-end
-
-function vpshift(vp0::VertexPoint,v::AbstractArray)
-    vp = deepcopy(vp0)
-    vp.a .+= v
-    vp
-end
-
-function vprotate!(vp::VertexPoint,θ::Float64)
-    vp.a .= SolidState.R2D(1.0,θ)*vp.a
-    vp
-end
-################################################################
-# Vertex and Edge Graph
-################################################################
-
-struct GraphTree{BL <: EdgeLine, VP <: VertexPoint, G <: AbstractArray}
-    edges::Vector{BL}
-    vertices::Vector{VP}
-    edges0::Vector{BL}
-    vertices0::Vector{VP}
+struct BondTree{BL <: BondLine, G<:AbstractArray}
+    branches::Vector{BL}
+    leafs::Vector{BL}
     generators::G
 end
 
-function treeshift(tree0::GraphTree,shift)
-    tree = deepcopy(tree0)
-    blshift!.(tree.edges,Ref(shift))
-    blshift!.(tree.edges0,Ref(shift))
-    vpshift!.(tree.vertices,Ref(shift))
-    vpshift!.(tree.vertices0,Ref(shift))
-    tree
+function treeshift(bt0,shift)
+    bt = deepcopy(bt0)
+    blshift!.(bt.branches,Ref(shift))
+    blshift!.(bt.leafs,Ref(shift))
+    bt
 end
 
-function treeshift!(tree::GraphTree,shift)
-    blshift!.(tree.edges,Ref(shift))
-    blshift!.(tree.edges0,Ref(shift))
-    vpshift!.(tree.vertices,Ref(shift))
-    vpshift!.(tree.vertices0,Ref(shift))
-    tree
+function treeshift!(bt,shift)
+    blshift!.(bt.branches,Ref(shift))
+    blshift!.(bt.leafs,Ref(shift))
+    bt
 end
 
-function treerotate!(tree::GraphTree,θ)
-    blrotate!.(tree.edges,θ)
-    blrotate!.(tree.edges0,θ)
-    vprotate!.(tree.vertices,θ)
-    vprotate!.(tree.vertices0,θ)
-    tree
+function treerotate!(bt,θ)
+    blrotate!.(bt.branches,θ)
+    blrotate!.(bt.leafs,θ)
+    bt
 end
 
-function treerotate(tree0::GraphTree,θ)
-    tree = deepcopy(tree0)
-    blrotate!.(tree.edges,θ)
-    blrotate!.(tree.edges0,θ)
-    vprotate!.(tree.vertices,θ)
-    vprotate!.(tree.vertices0,θ)
-    tree
+function treerotate(bt0,θ)
+    bt = deepcopy(bt0)
+    blrotate!.(bt.branches,θ)
+    blrotate!.(bt.leafs,θ)
+    bt
 end
 
-function grow!(tree::GraphTree,nvec::AbstractArray)
-    push!.(Ref(tree.edges),blshift.(tree.edges0,Ref(tree.generators*nvec)))
-    push!.(Ref(tree.vertices),  vpshift.(tree.vertices0,Ref(tree.generators*nvec)))
-end
-
-function grow!(tree::GraphTree,N::Int)
-    mesh = [ [n1,n2] for n1 in -N:N, n2 in -N:N]
-    grow!.(Ref(tree),mesh)
-    tree
-end
-
-################################################################
-# Plotting Graphs
-################################################################
-function edgeplot!(plt,gt::GraphTree; kargs...)
-    xdoms = map(gt.edges) do branch
-        [branch.a[1],branch.b[1]]
-    end
-    yimgs = map(gt.edges) do branch
-        [branch.a[2],branch.b[2]]
-    end
-    plot!(plt,xdoms,yimgs;
+function treeplot!(plt,bt::BondTree; kargs...)
+    plotline!.(Ref(plt),bt.branches;
         label="",
         aspectratio=1,
         color=:black,
         kargs...
         )
-end
-
-function vertexplot!(plt,gt::GraphTree;kargs...)
-    if !isempty(gt.vertices)
-        xpts = map(gt.vertices) do vertice
-            vertice.a[1]
-        end
-        ypts = map(gt.vertices) do vertice
-            vertice.a[2]
-        end
-        colors = map(gt.vertices) do vertice
-            vertice.prop[:color]
-        end
-        ms = map(gt.vertices) do vertice
-            vertice.prop[:m]
-        end
-        scatter!(plt,xpts,ypts;
-            label="",
-            color = colors,
-            m = ms,
-            kargs...
-            )
-    end
     plt
 end
 
-function treeplot!(plt::AbstractPlot,gt::GraphTree; eargs=(frame=:none,),vargs=(frame=:none,))
-    edgeplot!(plt,gt; eargs...)
-    vertexplot!(plt,gt; vargs...)
+function grow(bt,nvec::AbstractArray)
+    push!.(Ref(bt.branches),blshift.(bt.leafs,Ref(bt.generators*nvec)))
+end
+
+function grow(bt,N::Int)
+    mesh = [ [n1,n2] for n1 in -N:N, n2 in -N:N]
+    grow.(Ref(bt),mesh)
+    bt
+end
+
+function basic_tree(asd,N)
+    asd0 = asd()
+    asdb = SolidState.ASDBasics(asd0)
+    xtal = asdb["xtal"][1][1:2,1:2]
+    slv = asdb["xtal"][2]
+    slv[1][1:2]
+    blength = (xtal[1,:]|>norm)/sqrt(3)/2
+
+    linesA = [BondLine([0.0,0.0],[reim(-blength*exp(im*2π*n/3+im*π/2))...]) for n in 0:2]
+    blshift!.(linesA,Ref(-slv[1][1:2]))
+    linesB = [BondLine([0.0,0.0],[reim(blength*exp(im*2π*n/3+im*π/2))...]) for n in 0:2]
+    blshift!.(linesB,Ref(slv[1][1:2]))
+    lines = vcat(linesA,linesB)
+
+    bt = BondTree(eltype(lines)[],lines,xtal')
+    grow(bt,N)
+    bt
+end
+
+function twist_plot(asd,θ,N)
+    bt = basic_tree(asd,N)
+    bt_1 = treerotate(bt,θ)
+    bt_2 = treerotate(bt,-θ)
+    plt = plot(
+        frame=:none,
+        aspectratio = 1,
+        )
+    treeplot!(plt,bt_1; color=:black);
+    treeplot!(plt,bt_2; color=:red);
     plt
 end
+
+function shift_plot(asd,shifts,N)
+    bt = basic_tree(asd,N)
+    bt_1 = treeshift(bt,shifts[1])
+    bt_2 = treeshift(bt,shifts[2])
+    plt = plot(
+        frame=:none,
+        aspectratio = 1,
+        )
+    treeplot!(plt,bt_1; color=:black);
+    treeplot!(plt,bt_2; color=:red);
+    plt
+end
+
 
 function resize_box!(plt,box)
     plot!(plt;
@@ -369,7 +345,7 @@ end
 
 function parallel_project(bt0,direction)
     bt = deepcopy(bt0)
-    filter!(bt.vertices) do branch
+    filter!(bt.branches) do branch
         bond = branch.a .- branch.b
         abs(acos(dot(direction,bond)/(norm(bond)*norm(direction)))) < 1e-5
     end
@@ -388,11 +364,11 @@ end
 function plane_bonds(asd)
     asdg = asd|>SolidState.ASDGeometry
     boundaryQ = SolidState.BoundaryEdgeQ((asdg["uc_c"]...,asdg["uc_c"][1],asdg["uc_c"][2]))
-    bt = GraphTree(typeof(EdgeLine(rand(3),rand(3)))[],VertexPoint[],typeof(EdgeLine(rand(3),rand(3)))[],VertexPoint[],zeros(3,3))
+    bt = BondTree(typeof(BondLine(rand(3),rand(3)))[],typeof(BondLine(rand(3),rand(3)))[],zeros(3,3))
     for (i,site1) in enumerate(getindex.(asd["sites"],3))
         for site2 in getindex.(asd["sites"],3)
             if boundaryQ((site1+site2)/2) && (abs(site1[3]-site2[3]) < 1e-5)
-                push!(bt.edges,EdgeLine(copy(site1),copy(site2)))
+                push!(bt.branches,BondLine(copy(site1),copy(site2)))
             end
         end
     end
@@ -401,10 +377,10 @@ end
 
 function vertical_bonds(asd)
     asdg = asd|>SolidState.ASDGeometry
-    bt = GraphTree(typeof(EdgeLine(rand(3),rand(3)))[],VertexPoint[],typeof(EdgeLine(rand(3),rand(3)))[],VertexPoint[],zeros(3,3))
+    bt = BondTree(typeof(BondLine(rand(3),rand(3)))[],typeof(BondLine(rand(3),rand(3)))[],zeros(3,3))
     for (i,site1) in enumerate(getindex.(asd["sites"],3))
         for site2 in getindex.(asd["sites"],3)
-            push!(bt.edges,EdgeLine(copy(site1),copy(site2)))
+            push!(bt.branches,BondLine(copy(site1),copy(site2)))
         end
     end
     btz = parallel_project(bt,[0.0,0.0,1.0])
@@ -815,27 +791,21 @@ end
 
 Calculate the band structure of a model along the high symmetry points listed in
 """
-function bands(dict, NBs)
+function bands(dict, NBs; args...)
     plotbook = Dict(
-        "band-reg-all"=>band_region_plot(       dict,(1,:end)),
-        "band-val-all"=>band_region_plot(       dict,(:val,:end)),
-        "band-cond-all"=>band_region_plot(      dict,(:cond,:end)),
-        "band-broken-all"=>band_broken_plot(    dict,:end),
+        "band-reg-all"=>band_region_plot(       dict,(1,:end); args...),
+        "band-val-all"=>band_region_plot(       dict,(:val,:end); args...),
+        "band-cond-all"=>band_region_plot(      dict,(:cond,:end); args...),
+        "band-broken-all"=>band_broken_plot(    dict,:end; args...),
     )
     for NB ∈ NBs
         merge!(plotbook,Dict(
-        "band-reg-$NB"=> band_region_plot(      dict,(-NB,-NB)),
-        "band-val-$NB"=>band_region_plot(       dict,(:val,NB)),
-        "band-cond-$NB"=>band_region_plot(      dict,(:cond,NB)),
-        "band-broken-$NB"=>band_broken_plot(    dict,NB),
+        "band-reg-$NB"=> band_region_plot(      dict,(-NB,-NB); args...),
+        "band-val-$NB"=>band_region_plot(       dict,(:val,NB); args...),
+        "band-cond-$NB"=>band_region_plot(      dict,(:cond,NB); args...),
+        "band-broken-$NB"=>band_broken_plot(    dict,NB; args...),
         ))
     end
-    plotbook
-end
-
-function bands(NBs; dict, plotdir, kargs...)
-    plotbook = bands(dict,NBs)
-    SolidState.Main.book_save(plotbook,plotdir)
     plotbook
 end
 
@@ -1025,20 +995,15 @@ function shg_section(args=(frame=:none,); plotdir, asd,mn,asdg,patch_rng,T1d,T2d
     plts
 end
 
-function shifted_response(; RN, asd, Nevals, rngs, kargs...)
-    cache = BSON.load("$(ENV["scriptdir"])/out/$RN/shifted-$asd-$Nevals"*"$(string(("-".*string.(rngs))...)).bson")
+function shifted_shg(; RN, asd, Nevals, steps, kargs...)
+    cache = BSON.load("$(ENV["scriptdir"])/out/$RN/shifted-$asd-$Nevals-$steps.bson")
     data = cache[:data]
     bdom = cache[:bdom]
     plt = plot()
     rmax = 0.0
-
-    for spectra in cache[:data]
-        if !any(isnan.(abs.(spectra)))
-            rmax = max(rmax,abs.(spectra[1]))
-            plot!(plt,bdom,abs.(spectra),label="")
-        else
-            println("ehhhh")
-        end
+    map(values(data)|>collect) do spectra
+        plot!(plt,bdom,abs.(spectra),label="")
+        rmax = max(rmax,abs.(spectra[1]))
     end
 
     lens!([0.0,0.5], [0.0,2rmax],
@@ -1046,12 +1011,12 @@ function shifted_response(; RN, asd, Nevals, rngs, kargs...)
         yrot = 60
         )
     mkpath("$(ENV["scriptdir"])/plot/$RN")
-    Plots.pdf(plt, "$(ENV["scriptdir"])/plot/$RN/shifted-$asd-$Nevals"*string(("-".*string.(rngs))...))
+    Plots.pdf(plt, "$(ENV["scriptdir"])/plot/$RN/shifted-$asd-$Nevals-$steps")
     plt
 end
 
-function shifted_response(RN,asd,Nevals,rngs, kargs...)
-    shifted_response(RN=RN,asd=asd,Nevals=Nevals, rngs=rngs)
+function shifted_shg(RN,asd,Nevals,steps, kargs...)
+    shifted_shg(RN=RN,asd=asd,Nevals=Nevals,steps=steps)
 end
 
 

@@ -335,35 +335,35 @@ function WHA()
     ϵNN=-4.0
     Dict(
         "lbase" => 10,
-        "cutoff" => 4.001 * a / sqrt(3),
+        "cutoff" => 20 * a / sqrt(3),
         "regulator" => "exp",
         "scales" => E_Scales(a, c, δBB, δNN, δNB, ϵBB, ϵNN, vppσ, vppπBB, vppπNN, vppπNB),
     )
 end
 
-function WHA2()
-    a = 0.2512
-    c = 0.333
-    δBB = 0.022
-    δNN = 0.022
-    δNB = 0.0475
-    vppπBB = 0.7
-    vppπNN = 0.7
-    vppπNB = 2.3
-    vppσ = 0.7
-    ϵBB=4.0
-    ϵNN=-4.0
-    Dict(
-        "lbase" => 10,
-        "cutoff" => 4.001 * a / sqrt(3),
-        "regulator" => "exp",
-        "scales" => E_Scales(a, c, δBB, δNN, δNB, ϵBB, ϵNN, vppσ, vppπBB, vppπNN, vppπNB),
-    )
-end
+# function WHA(;vppσ,vppπNB,vppπNN,vppπBB,ϵNN,ϵBB)
+#     a = 0.2512
+#     c = 0.333
+#     δBB = 0.022
+#     δNN = 0.022
+#     δNB = 0.0475
+#     # vppπBB = 0.7
+#     # vppπNN = 0.7
+#     # vppπNB = 2.3
+#     # vppσ = 2.3
+#     # ϵBB=4.0
+#     # ϵNN=-4.0
+#     Dict(
+#         "lbase" => 10,
+#         "cutoff" => 4.001 * a / sqrt(3),
+#         "regulator" => "exp",
+#         "scales" => E_Scales(a, c, δBB, δNN, δNB, ϵBB, ϵNN, vppσ, vppπBB, vppπNN, vppπNB),
+#     )
+# end
 
 
-export ASD
-function ASD()
+export ASD1
+function ASD1()
     a = 0.2512
     c = 0.333
     asd = Dict(
@@ -388,6 +388,24 @@ end
 
 export ASD2
 function ASD2()
+    a = 0.2512
+    c = 0.333
+    asd = Dict(
+        "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 2*c],
+        "sk" => Dict("Atom" => 1, "Layer" => 2,"Pos" => 3,"Spin" => 4,"Orbital" => 5,"Glyph" => 6,"Color" => 7),
+        "sites" => [
+            ("B", 1, [0.0, a / sqrt(3), -c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 1, [0.0, -a / sqrt(3), -c / 2],(0 // 1, [1]), (1, [2]), :circle, :orange),
+            ("B", 2, [0.0, a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 2, [0.0, -a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :orange),
+        ],
+        "filling" => 0.5,
+    )
+    merge(asd, WHA())
+end
+
+export ASD22
+function ASD22()
     a = 0.2512
     c = 0.333
     asd = Dict(
