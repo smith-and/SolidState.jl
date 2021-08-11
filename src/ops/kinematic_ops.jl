@@ -287,74 +287,44 @@ function KinematicDensity(hd::HD where HD <: HamiltonianDensity, priors::Array{N
     KinematicDensity(hd, KinematicOperators(size(hd.h_ops.h,1),length(priors); style=style), zeros(Complex{typeof(0.0)},size(hd.h_ops.h)),((x->[x...]).(priors))[:])
 end
 
-# Fermi-Dirac Functions
-function indicator(x::F)::F where F <: AbstractFloat
-    x > 0.0 ? 0.0 : 1.0
-end
+########################################
+#### [ri,re] matrix elements
+########################################
 
-@inline function fermi(ϵ::F, T::F, μ::Number=0.0)::F where F <: AbstractFloat
-    z=0.0
-
-    if T==0.0
-        z = (ϵ - μ) > 0.0 ? 0.0 : 1.0;
-    else
-        z = 1.0/(1.0+exp((1.0/(8.617*(1e-5)*T))*(ϵ - μ)));
+@inline function rire_add(n::Int64, m::Int64, p::Int64, new_val::Complex{F}, va::AbstractArray{Complex{F},2}, vb::AbstractArray{Complex{F},2}, ra::AbstractArray{Complex{F},2}, rb::AbstractArray{Complex{F},2} ) where F <: AbstractFloat
+    if !(p==n||p==m)
+        @inbounds @fastmath    new_val += (va[n,p]*rb[p,m]-rb[n,p]*va[p,m])
     end
-
-    return z
 end
 
-
-
-
-@inline function kinematic_ops(km::KinematicOperators, cfr::HamiltonianOperators, priors::Vector{Vector{F}}, ϵs::Vector{F}, r_aux::AbstractArray{Complex{F},2}) where F <: AbstractFloat
-    #Calculates the Fermi Functions
-
-    #Set some diagonals
-    idx=0
-    @inbounds @fastmath @simd for i=1:(size(km.dω,1)+1):length(km.dω)
-        idx+=1
-        km.dω[i]  = ϵs[idx]
-        r_aux[i] = 0.0
-        @inbounds @fastmath for p=eachindex(priors)
-            if priors[p][1]==0.0
-                if (ϵs[idx] - priors[p][2]) > 0.0
-                    km.df[p][i] = 0.0
-                else
-                    km.df[p][i] = 1.0
-                end
-            else
-                km.df[p][i] = 1.0/(1.0+exp((1.0/(8.617*(1e-5)*priors[p][1]))*(ϵs[idx] - priors[p][2])));
+@inline function km_rire(rireab::AbstractArray{Complex{F},2}, wab::AbstractArray{Complex{F},2}, va::AbstractArray{Complex{F},2}, vb::AbstractArray{Complex{F},2}, ra::AbstractArray{Complex{F},2}, rb::AbstractArray{Complex{F},2}, Δb::AbstractArray{Complex{F},2}, Δa::AbstractArray{Complex{F},2}, inv_dω::AbstractArray{Complex{F},2})::Nothing where F <: AbstractFloat
+    dim = 0;
+    dim = size(inv_dω,1);
+    @inbounds @fastmath for m ∈ 1:dim
+        @inbounds @fastmath for n ∈ 1:dim
+            new_rire = Complex(0.0)
+            @inbounds @fastmath  for p ∈ 1:dim
+                rire_add(n,m,p,new_rire,va,vb,ra,rb)
             end
+            rireab[n,m] = new_rire
         end
     end
 
-    #Set the off diagonals
-    @inbounds @fastmath for i∈ eachindex(ϵs)
-         @inbounds @fastmath @simd for j∈ eachindex(ϵs)
-            if i != j
-                idx = j+(i-1)*size(km.dω,1)
-                km.dω[idx]    = ϵs[j]-ϵs[i]
-                r_aux[idx] = -im / km.dω[j,i]
-                km.Δ[1][idx]  = cfr.v[1][j,j] - cfr.v[1][i,i]
-                km.Δ[2][idx]  = cfr.v[2][j,j] - cfr.v[2][i,i]
-                km.re[1][idx] = r_aux[idx] * (cfr.v[1][idx]);
-                km.re[2][idx] = r_aux[idx] * (cfr.v[2][idx]);
-                @inbounds @fastmath for p=eachindex(priors)
-                    km.df[p][idx] = km.df[p][j,j] - km.df[p][i,i]
-                end
-            end
-        end
-    end
-
-    # Assigns the rest of the operators in the section
-    rire_ops(km, cfr, priors, r_aux)
+    rireab .+= ( ( (ra .* Δb) .+ (rb .* Δa) ) .+ (im .* wab) )
+    rireab .*= (-1 .* inv_dω ) ;
 
     nothing
 end
 
+@inline function rire_ops(km::KinematicOperators, cfr::HamiltonianOperators, priors::Vector{Vector{F}}, inv_dω::AbstractArray{Complex{F},2}) where F <: AbstractFloat
+    for a ∈ 1:length(cfr.v)
+        for b ∈ 1:length(cfr.v)
+            @inbounds km_rire(km.rire[a,b], cfr.a[a,b], cfr.v[a], cfr.v[b], km.re[a], km.re[b], km.Δ[a], km.Δ[b], inv_dω)
+        end
+    end
 
-
+    nothing
+end
 
 @inline function kinematic_ops_fast(km::KinematicOperators, cfr::HamiltonianOperators, priors::Vector{Vector{F}}, ϵs::Vector{F}, r_aux::AbstractArray{Complex{F},2}) where F <: AbstractFloat
     #Calculates the Fermi Functions
@@ -384,11 +354,11 @@ end
             if i != j
                 idx = j+(i-1)*size(km.dω,1)
                 km.dω[idx]    = ϵs[j]-ϵs[i]
-                r_aux[idx] = -im / km.dω[j,i]
+                r_aux[idx] = 1.0 / km.dω[j,i]
                 km.Δ[1][idx]  = cfr.v[1][j,j] - cfr.v[1][i,i]
                 km.Δ[2][idx]  = cfr.v[2][j,j] - cfr.v[2][i,i]
-                km.re[1][idx] = r_aux[idx] * (cfr.v[1][idx]);
-                km.re[2][idx] = r_aux[idx] * (cfr.v[2][idx]);
+                km.re[1][idx] = Complex(0.0,-(r_aux[idx]).re) * (cfr.v[1][idx]) ;
+                km.re[2][idx] = Complex(0.0,-(r_aux[idx]).re) * (cfr.v[2][idx]) ;
                 @inbounds @fastmath for p=eachindex(priors)
                     km.df[p][idx] = km.df[p][j,j] - km.df[p][i,i]
                 end
@@ -399,6 +369,13 @@ end
     # Assigns the rest of the operators in the section
     # rire_ops(km, cfr, priors, r_aux)
 
+    nothing
+end
+
+@inline function kinematic_ops(km::KinematicOperators, cfr::HamiltonianOperators, priors::Vector{Vector{F}}, ϵs::Vector{F}, r_aux::AbstractArray{Complex{F},2}) where F <: AbstractFloat
+    kinematic_ops_fast(km,cfr,priors,ϵs,r_aux)
+    # Assigns the rest of the operators in the section
+    rire_ops(km, cfr, priors, r_aux)
     nothing
 end
 
@@ -417,52 +394,6 @@ function evaluate_km(k_obs::KinematicDensity, k::Vector{F}) where F <: Number #:
 
     nothing
 end
-
-########################################
-#### [ri,re] matrix elements
-########################################
-
-@inline function rire_add(n::Int64, m::Int64, p::Int64, new_val::Complex{F}, va::AbstractArray{Complex{F},2}, vb::AbstractArray{Complex{F},2}, ra::AbstractArray{Complex{F},2}, rb::AbstractArray{Complex{F},2} ) where F <: AbstractFloat
-    if !(p==n||p==m)
-    @inbounds @fastmath    new_val +=(va[n,p]*rb[p,m]-rb[n,p]*va[p,m])
-    end
-end
-
-@inline function km_rire(rireab::AbstractArray{Complex{F},2}, wab::AbstractArray{Complex{F},2}, va::AbstractArray{Complex{F},2}, vb::AbstractArray{Complex{F},2}, ra::AbstractArray{Complex{F},2}, rb::AbstractArray{Complex{F},2}, Δb::AbstractArray{Complex{F},2}, Δa::AbstractArray{Complex{F},2}, inv_dω::AbstractArray{Complex{F},2})::Nothing where F <: AbstractFloat
-    dim = 0;
-    dim = size(inv_dω,1);
-    @inbounds @fastmath for m ∈ 1:dim
-        @inbounds @fastmath for n ∈ 1:dim
-            new_rire = Complex(0.0)
-            @inbounds @fastmath  for p ∈ 1:dim
-                rire_add(n,m,p,new_rire,va,vb,ra,rb)
-            end
-            rireab[n,m] = new_rire
-        end
-    end
-
-    rireab .+= ( ( (ra .* Δb) .+ (rb .* Δa) ) .+ (im .* wab) )
-    rireab .*= (-1 .* inv_dω ) ;
-
-    nothing
-end
-
-@inline function rire_ops(km::KinematicOperators, cfr::HamiltonianOperators, priors::Vector{Vector{F}}, inv_dω::AbstractArray{Complex{F},2}) where F <: AbstractFloat
-    #
-    # for a ∈ 1:length(cfr.v)
-    #     @inbounds km.re[a]   .= -im .* (inv_dω) .* (cfr.v[a]);
-    # end
-
-    for a ∈ 1:length(cfr.v)
-        for b ∈ 1:length(cfr.v)
-            @inbounds km_rire(km.rire[a,b], cfr.a[a,b], cfr.v[a], cfr.v[b], km.re[a], km.re[b], km.Δ[a], km.Δ[b], inv_dω)
-        end
-    end
-
-    nothing
-end
-
-
 
 ########################################
 #### Projection Operators

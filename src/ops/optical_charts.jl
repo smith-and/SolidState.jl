@@ -85,14 +85,14 @@ struct SHG{TType <: TensorChart} <: OpticsChart
 end
 
 @inline function shg_Ri(dωmn::Float64, reanm::A, rebmn::A, recmn::A, Δbmn::A, Δcmn::A, rrbanm::A, rrabnm::A, rrcanm::A, rracnm::A, rrcbmn::A, rrbcmn::A)::Tuple{A,A} where A <: Complex{Float64}
-    @fastmath Complex(-0.5/(dωmn)^2,0.0).*(
+    @fastmath Complex(0.0,-0.5/(dωmn)^2).*(
         reanm*(rebmn*Δcmn + recmn*Δbmn) + dωmn*((rrcanm*rebmn + rrbanm*recmn) - 0.5*(rrabnm*recmn + rracnm*rebmn)),
         2.0*reanm*(dωmn*(rrcbmn + rrbcmn) - 2.0*(rebmn*Δcmn + recmn*Δbmn))
     )
 end
 
 @inline function shg_Re(dωml::Float64,dωln::Float64, reanm::C, rebml::C, rebln::C, recml::C, recln::C)::C where C <: Complex{Float64}
-    @fastmath return Complex(0.0,(0.5/(dωln-dωml)))*reanm*(rebml*recln+recml*rebln)
+    @fastmath return Complex((0.5/(dωln-dωml)),0.0)*reanm*(rebml*recln+recml*rebln)
 end
 
 function shg_evaluation(tc::TensorChart, K0::KinematicDensity, k::AbstractVector , dim_ℋ::Int64)
