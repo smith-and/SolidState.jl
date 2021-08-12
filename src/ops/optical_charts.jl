@@ -86,7 +86,7 @@ end
 
 @inline function shg_Ri(dωmn::Float64, reanm::A, rebmn::A, recmn::A, Δbmn::A, Δcmn::A, rrbanm::A, rrabnm::A, rrcanm::A, rracnm::A, rrcbmn::A, rrbcmn::A)::Tuple{A,A} where A <: Complex{Float64}
     @fastmath Complex(0.0,-0.5/(dωmn)^2).*(
-        reanm*(rebmn*Δcmn + recmn*Δbmn) + dωmn*((rrcanm*rebmn + rrbanm*recmn) - 0.5*(rrabnm*recmn + rracnm*rebmn)),
+        reanm*(rebmn*Δcmn + recmn*Δbmn) + dωmn*((rracnm*rebmn + rrabnm*recmn) - 0.5*(rrbanm*recmn + rrcanm*rebmn)),
         2.0*reanm*(dωmn*(rrcbmn + rrbcmn) - 2.0*(rebmn*Δcmn + recmn*Δbmn))
     )
 end
@@ -122,6 +122,7 @@ function shg_evaluation(tc::TensorChart, K0::KinematicDensity, k::AbstractVector
                             @fastmath @inbounds Re1 += shg_Re(K.dω[mn],K.dω[nl],K.re[a][lm],K.re[b][mn],K.re[b][nl],K.re[c][mn],K.re[c][nl])
                         end
                     end
+                    Re2*=Complex(-2.0,0.0)
                     for (ib,(ω,)) ∈ enumerate(tc.base)
                         for (ip,(T,μ,δ)) ∈ enumerate(tc.priors)
                             @fastmath idx = ii + ((ip-1) + (ib-1)*tc.l_p)*tc.l_i
