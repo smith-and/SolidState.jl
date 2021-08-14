@@ -408,7 +408,83 @@ function shiftedbands(RN, asd, (n1,n2,N)::Tuple{Int,Int,Int}, pathlist=["K1","Γ
     "$scriptdir/out/$RN/$asd-$(mn[1])-$(mn[2]).bson"
 end
 
+######################################
+#### Calculating 1D path sections with full structure data retained
+######################################
+function hd_section_1d(asd::Dict{String,Any}, hd::HamiltonianDensity, Npath=100, pathlist=["K1","Γ","M1","K'1"]; kargs...)
+    asdg = SolidState.ASDGeometry(asd);
+    tbks, corner_indices, odimeter = path_points(asd,[pathlist],Npath)
 
+    #Compute Data
+    Es = zeros(Float64,(size(hd.h_ops.h,1),Npath));
+    Evs = Vector{typeof(hd.h_ops.E.vectors)}(undef,Npath);
+    # Vs = Vector{typeof(hd.h_ops.v)}(undef,Npath)
+    # As = Vector{typeof(hd.h_ops.a)}(undef,Npath)
+    for (i,k) ∈ enumerate(tbks)
+        hd(k)
+        E = eigen(Hermitian(hd.h_ops.h))
+        Es[:,i] = E.values
+        Evs[i] = E.vectors
+        # SolidState.cartan_transform(hd.h_ops)
+        # Es[:,i] = deepcopy(hd.h_ops.E.values)
+        # Evs[i] = deepcopy(hd.h_ops.E.vectors)
+        # Vs[i] = deepcopy(hd.h_ops.v)
+        # As[i] = deepcopy(hd.h_ops.a)
+    end
+
+    tick_odimeters = [getindex.(Ref(odimeter[i]),corner_indices[i]) for i=1:length(corner_indices)]
+
+    args = (
+            frame   = :box,
+            grid    = :x,
+            label   = "",
+            xlims   = (0, 1),
+            yrotation=60,
+            yguide  = "eV",
+            gridalpha      = .5 ,
+            gridlinewidth  = 1,
+            gridstyle      = :dashdot,
+            xtickfonthalign =:center,
+            xtickfontsize  = 9,
+            yguidefontsize = 10,
+            xticks         = (tick_odimeters[1]./max(odimeter[1]...), pathlist),
+            minorgrid      = false,
+            margin         = 4Plots.mm,
+            apsectratio    = 1/4,
+            title_pos       = :right,
+            titlefontvalign = :bottom,
+            kargs...
+        );
+
+    Dict(
+        :odimeter => odimeter./max(odimeter[1]...),
+        :Es       => Es',
+        :args     => args,
+        :ks       => tbks,
+        :path     => pathlist,
+        :Evs      => Evs,
+        # :Vs       => Vs,
+        # :As       => As,
+    )
+end
+
+hds1d_tag(asd,mn,Npath,pathlist) = "bands-$asd-$(mn[1])-$(mn[2])-$Npath-$(hash(pathlist))"
+function hd_section_1d(RN, asd, mn, Npath = 300, pathlist=["K1","Γ","M1","K'1"], scriptdir=ENV["scriptdir"], cachedirr=ENV["cachedir"], args...;force = false)
+    #Compute Data
+    ASD       = BSON.load(   "$cachedirr/$asd/asd-$(mn[1])-$(mn[2]).bson")
+    hd        = data_import( "$cachedirr/$asd/hd-$(mn[1])-$(mn[2]).bson")
+    dict      = hd_section_1d(ASD,hd,Npath,pathlist; title = "$(round(180/π*SolidState.cθ(mn...),digits=3))ᵒ")
+
+    #Export Data
+    bson("$(mkpath("$scriptdir/out/$RN/"))/$(hds1d_tag(asd,mn,Npath,pathlist)).bson",
+        Dict(
+            :dict  => dict,
+            :tag   => hds1d_tag(asd,mn,Npath,pathlist),
+            :angle => SolidState.cθ(mn...)*180/π
+        )
+    )
+    "$(mkpath("$scriptdir/out/$RN/"))/$(hds1d_tag(asd,mn,Npath,pathlist)).bson"
+end
 
 ######################################
 #### Calculating Spectral Sections
@@ -831,6 +907,25 @@ function extract(RN,name,plotfunction,args...)
     datafile = "$(ENV["scriptdir"])/out/$RN/$name.bson"
     plotdir = "$(ENV["scriptdir"])/plot/$RN"|>mkpath
     plotfunction(args...; BSON.load(datafile)..., plotdir=plotdir)
+end
+
+
+function series_extract(RN,tags,plotargs::Tuple)
+    map(enumerate(tags)) do (i,tag)
+        SolidState.Main.extract(RN,tag,plotargs)
+    end
+end
+
+function series_extract(RN,tags,plotargs::AbstractVector)
+    map(enumerate(tags)) do (i,tag)
+        SolidState.Main.extract(RN,tag,plotargs[i])
+    end
+end
+
+function series_extract(RN,plottags::AbstractDict)
+    map(collect(keys(plottags)),collect(values(plottags))) do (tag,plotarg)
+        SolidState.Main.extract(RN,tag,plotarg...)
+    end
 end
 
 function b2_extract(RN,name,plotfunction,args...)

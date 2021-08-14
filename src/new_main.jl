@@ -60,7 +60,6 @@ function full_band_data(asd::Dict{String,Any}, hd::HamiltonianDensity, pathlist=
         E = eigen(Hermitian(hd.h_ops.h))
         tbEs[:,i] .= E.values
         tbVs[:,:,i] .= E.vectors
-
     end
 
     tick_odimeters = [getindex.(Ref(odimeter[i]),corner_indices[i]) for i=1:length(corner_indices)]

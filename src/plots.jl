@@ -719,10 +719,7 @@ end
 #### Plotting for Single Bandstructure
 ##################################################
 
-"""
-    band_region_plot(dict,(bmin,bmax); args...)
-"""
-function band_region_plot(dict,(bmin,bmax); args...)
+function energy_window(dict, (bmin,bmax))
     dim = size(dict[:Es],2)
 
     if bmin|>typeof <: Int
@@ -757,8 +754,15 @@ function band_region_plot(dict,(bmin,bmax); args...)
     bm = max(1,bm)
     bx = min(dim,bx)
 
-    Emin = min(dict[:Es][:,bm:bx]...)|>x->(x < 0 ? 1.01*x : 0.99*x)
-    Emax = max(dict[:Es][:,bm:bx]...)|>x->(x > 0 ? 1.01*x : 0.99*x)
+    Emin = min(dict[:Es][:,bm:bx]...)#|>x->(x < 0 ? 1.01*x : 0.99*x)
+    Emax = max(dict[:Es][:,bm:bx]...)#|>x->(x > 0 ? 1.01*x : 0.99*x)
+
+    bm,bx,Emin,Emax
+end
+
+function band_region_plot(dict,(bmin,bmax); args...)
+
+    bm,bx,Emin,Emax = energy_window(dict,(bmin,bmax))
 
     plt = Plots.plot(dict[:odimeter], dict[:Es] ; dict[:args]..., ylims=(Emin,Emax), opacity=0.3, args...)
     Plots.plot!(dict[:odimeter], dict[:Es][:,bm:bx] ; dict[:args]..., ylims=(Emin,Emax), args...)
@@ -773,41 +777,6 @@ function band_broken_plot(dict, nbands; args...)
         layout = grid(2,1),
         args...
     )
-end
-
-function band_step_gif(dict; plotdir, fps=2.5, args...)
-    anim = Animation()
-    for nbands ∈ 1:Int(floor(size(dict[:Es],2)/2))
-        plt = band_broken_plot(dict,nbands)
-        #display(plt)
-        frame(anim,plt)
-        if (nbands==1)||(nbands==Int(floor(size(dict[:Es],2)/2)))
-            for _∈1:10
-                frame(anim,plt)
-            end
-        end
-    end
-    gif(anim,"$plotdir/band_step.gif",fps=fps)
-end
-
-function collection_gif(dicts::Vector{AbstractDict},NBs; plotdir, fps=2.5, args...)
-    anims = Vector{typeof(Animation())}(undef, length(dicts))
-    for i∈1:length(dicts)
-        anims[i] = Animation()
-    end
-
-    plotbook0 = band_plotbook(dict[1],NBs,plotdir=plotdir)
-    # plotseries = Vector{typeof(values(plotbook0)[1])}(undef,(length(dicts),length(values(plotbook0))))
-    for (i,dict) ∈ enumerate(dicts)
-        plotbook = band_plotbook(dict)
-        for (j,plt) ∈ enumerate(values(plotbook))
-            frame(anims[j],plt)
-        end
-    end
-
-    for (i,anim) ∈ enumerate(anims)
-        gif(anim,"$plotdir/$(keys(plotbook0)[i]).gif",fps=fps)
-    end
 end
 
 """
@@ -837,6 +806,73 @@ function bands(NBs; dict, plotdir, kargs...)
     plotbook = bands(dict,NBs)
     SolidState.Main.book_save(plotbook,plotdir)
     plotbook
+end
+
+##################################################
+#### Plotting for Structured Bands
+##################################################
+
+function band_weights(Evs,O)
+    hcat(map(Evs) do U
+        map(eachslice(U,dims=2)) do v
+            v'*O*v
+        end
+    end...)'
+end
+
+function structured_band_region(dict,(bmin,bmax),𝒪; args...)
+    structure_data = real.(band_weights(dict[:Evs],𝒪))
+
+    bm,bx,Emin,Emax = SolidState.Plot.energy_window(dict,(bmin,bmax))
+    colorgrad = cgrad([RGBA(1.0,0.0,0.0,0.5),RGBA(0.0,0.0,1.0,0.5)])
+    plt = Plots.plot(dict[:odimeter]./max(dict[:odimeter][1]...),dict[:Es];
+        lc=colorgrad,
+        line_z= structure_data,
+        colorbar=false,
+        dict[:args]...,
+        ylims=(Emin*1.1,Emax*1.1),
+        args...
+        )
+end
+
+function structured_band_region(brng,𝒪; dict, tag, plotdir, kargs...)
+    plt = structured_band_region(dict,brng,𝒪)
+    Plots.pdf(plt, mkpath("$plotdir/$tag")*"/band_region-$(brng[1])-$(brng[2])")
+    plt
+end
+
+function structured_band_broken(dict, α, nbands, 𝒪; args...)
+
+    bmVal,bxVal,EminVal,EmaxVal = SolidState.Plot.energy_window(dict,(:val,nbands))
+    bmCon,bxCon,EminCon,EmaxCon = SolidState.Plot.energy_window(dict,(:cond,nbands))
+
+    dict[:Es0] = deepcopy(dict[:Es])
+
+    dict[:Es] = hcat(
+        (dict[:Es0][:,1:bxVal] .- EmaxVal*α),
+        (dict[:Es0][:,bmCon:end] .- EminCon*α)
+    )
+
+    actual_values = round.((EminVal, (EminVal+EmaxVal)/2,  EmaxVal, EminCon, (EminCon+EmaxCon)/2, EmaxCon),digits=2)
+    shifted_values = (EminVal- EmaxVal*α, (EminVal+EmaxVal)/2-EmaxVal*α, EmaxVal-EmaxVal*α, EminCon*(1-α), (EminCon+EmaxCon)/2-EminCon*α, EmaxCon-EminCon*α )
+
+    plt = structured_band_region(dict, (1,:end), 𝒪;
+        yticks = (shifted_values,actual_values),
+        ylims = ((EminVal.- EmaxVal*α)*1.1,(EmaxCon .- EminCon*α)*1.1),
+        grid = :all,
+        gridalpha = 0.25,
+        args...
+    )
+
+    dict[:Es] = dict[:Es0]
+
+    annotate!((0.0,0.0,"∼"))
+end
+
+function structured_band_broken(α,nbands,𝒪; dict, tag, plotdir, kargs...)
+    plt = structured_band_broken(dict,α,nbands,𝒪)
+    Plots.pdf(plt, mkpath("$plotdir/$tag")*"/broken-$nbands-$α")
+    plt
 end
 
 ##################################################

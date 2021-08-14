@@ -79,15 +79,17 @@ end
 
 const ϵ = 55.26349406*(2π)^3/1e6 # 1/(MV⋅m)
 
+ϵ2 = 1/42.106021882608665
+
 export SHG
 struct SHG{TType <: TensorChart} <: OpticsChart
     shg::TType
 end
 
 @inline function shg_Ri(dωmn::Float64, reanm::A, rebmn::A, recmn::A, Δbmn::A, Δcmn::A, rrbanm::A, rrabnm::A, rrcanm::A, rracnm::A, rrcbmn::A, rrbcmn::A)::Tuple{A,A} where A <: Complex{Float64}
-    @fastmath Complex(0.0,-0.5/(dωmn)^2).*(
-        reanm*(rebmn*Δcmn + recmn*Δbmn) + dωmn*((rracnm*rebmn + rrabnm*recmn) - 0.5*(rrbanm*recmn + rrcanm*rebmn)),
-        2.0*reanm*(dωmn*(rrcbmn + rrbcmn) - 2.0*(rebmn*Δcmn + recmn*Δbmn))
+    @fastmath (
+        -im*0.5/(dωmn)^2*(reanm*(rebmn*Δcmn + recmn*Δbmn) + dωmn*((rracnm*rebmn + rrabnm*recmn) - 0.5*(rrbanm*recmn + rrcanm*rebmn))),
+        -im/(dωmn)^2*reanm*(dωmn*(rrcbmn + rrbcmn) - 2.0*(rebmn*Δcmn + recmn*Δbmn))
     )
 end
 
@@ -114,7 +116,7 @@ function shg_evaluation(tc::TensorChart, K0::KinematicDensity, k::AbstractVector
                         if (l!=n)&&(l!=m)#&&(-1e-4 < K.dω[l,n] < 1e-4)&&(-1e-4 < K.dω[l,n] < 1e-4)
                             @fastmath ml = m + (l-1)*dim_ℋ
                             @fastmath ln = l + (n-1)*dim_ℋ
-                            @fastmath @inbounds Re2 += shg_Re(K.dω[ml],K.dω[ln],K.re[a][nm],K.re[b][ml],K.re[b][ln],K.re[c][ml],K.re[c][ln])
+                            @fastmath @inbounds Re2 += -2.0*shg_Re(K.dω[ml],K.dω[ln],K.re[a][nm],K.re[b][ml],K.re[b][ln],K.re[c][ml],K.re[c][ln])
 
                             @fastmath lm = l + (m-1)*dim_ℋ
                             @fastmath nl = n + (l-1)*dim_ℋ
@@ -122,7 +124,6 @@ function shg_evaluation(tc::TensorChart, K0::KinematicDensity, k::AbstractVector
                             @fastmath @inbounds Re1 += shg_Re(K.dω[mn],K.dω[nl],K.re[a][lm],K.re[b][mn],K.re[b][nl],K.re[c][mn],K.re[c][nl])
                         end
                     end
-                    Re2*=Complex(-2.0,0.0)
                     for (ib,(ω,)) ∈ enumerate(tc.base)
                         for (ip,(T,μ,δ)) ∈ enumerate(tc.priors)
                             @fastmath idx = ii + ((ip-1) + (ib-1)*tc.l_p)*tc.l_i
@@ -133,7 +134,7 @@ function shg_evaluation(tc::TensorChart, K0::KinematicDensity, k::AbstractVector
             end
         end
     end
-    # tc.data.= tc.data./ϵ
+    tc.data.= tc.data.*(36.474728077745624)*2
     copy(tc.data)
 end
 

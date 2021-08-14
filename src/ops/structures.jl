@@ -24,8 +24,8 @@ function Control_Scales(a0,c,δ,vppσ,vppπ,ϵBB,ϵNN)
     )
 end
 
-export Control1L
-function Control1L()
+export Control1L0
+function Control1L0()
     a    = 1;   c    = 1; δ    = .1
     vppπ = 1.0; vppσ = 0.1
     ϵBB  = 0.5; ϵNN  = -0.5

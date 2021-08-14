@@ -291,28 +291,8 @@ end
 #### [ri,re] matrix elements
 ########################################
 
-@inline function rire_add(n::Int64, m::Int64, p::Int64, new_val::Complex{F}, va::AbstractArray{Complex{F},2}, vb::AbstractArray{Complex{F},2}, ra::AbstractArray{Complex{F},2}, rb::AbstractArray{Complex{F},2} ) where F <: AbstractFloat
-    if !(p==n||p==m)
-        @inbounds @fastmath    new_val += (va[n,p]*rb[p,m]-rb[n,p]*va[p,m])
-    end
-end
-
 @inline function km_rire(rireab::AbstractArray{Complex{F},2}, wab::AbstractArray{Complex{F},2}, va::AbstractArray{Complex{F},2}, vb::AbstractArray{Complex{F},2}, ra::AbstractArray{Complex{F},2}, rb::AbstractArray{Complex{F},2}, Δb::AbstractArray{Complex{F},2}, Δa::AbstractArray{Complex{F},2}, inv_dω::AbstractArray{Complex{F},2})::Nothing where F <: AbstractFloat
-    dim = 0;
-    dim = size(inv_dω,1);
-    @inbounds @fastmath for m ∈ 1:dim
-        @inbounds @fastmath for n ∈ 1:dim
-            new_rire = Complex(0.0)
-            @inbounds @fastmath  for p ∈ 1:dim
-                rire_add(n,m,p,new_rire,va,vb,ra,rb)
-            end
-            rireab[n,m] = new_rire
-        end
-    end
-
-    rireab .+= ( ( (ra .* Δb) .+ (rb .* Δa) ) .+ (im .* wab) )
-    rireab .*= (-1 .* inv_dω ) ;
-
+    rireab .= (-1 .* inv_dω ) .* ( ( (ra .* Δb) .+ (rb .* Δa) ) .+ (im .* wab) .+ va*rb .- rb*va )
     nothing
 end
 
