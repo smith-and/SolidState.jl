@@ -324,15 +324,15 @@ end
 function WHA()
     a = 0.2512
     c = 0.333
-    δBB = 0.022
-    δNN = 0.022
-    δNB = 0.0475
+    # δBB = 0.022
+    # δNN = 0.022
+    δNN = δBB = δNB = 0.0475
     vppπBB = 0.7
     vppπNN = 0.15
     vppπNB = 2.3
     vppσ = 0.2
-    ϵBB=4.0
-    ϵNN=-4.0
+    ϵBB = 4.0
+    ϵNN = -4.0
     Dict(
         "lbase" => 10,
         "cutoff" => 20 * a / sqrt(3),
