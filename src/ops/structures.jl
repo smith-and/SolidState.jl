@@ -324,9 +324,9 @@ end
 function WHA()
     a = 0.2512
     c = 0.333
-    # δBB = 0.022
-    # δNN = 0.022
-    δNN = δBB = δNB = 0.0475
+    δBB = 0.022
+    δNN = 0.022
+    δNB = 0.0475
     vppπBB = 0.7
     vppπNN = 0.15
     vppπNB = 2.3
@@ -574,10 +574,108 @@ function ASD4CS()
 end
 
 ##########################################
+#### Small Gap ASD Systems
+##########################################
+
+
+function SGWHA()
+    a = 0.2512
+    c = 0.333
+    δBB = 0.022
+    δNN = 0.022
+    δNB = 0.0475
+    vppπBB = 0.7
+    vppπNN = 0.15
+    vppπNB = 2.3
+    vppσ = 0.2
+    ϵBB = 1.0
+    ϵNN = -1.0
+    Dict(
+        "lbase" => 10,
+        "cutoff" => 20 * a / sqrt(3),
+        "regulator" => "exp",
+        "scales" => E_Scales(a, c, δBB, δNN, δNB, ϵBB, ϵNN, vppσ, vppπBB, vppπNN, vppπNB),
+    )
+end
+
+export SGASD1
+function SGASD1()
+    a = 0.2512
+    c = 0.333
+    asd = Dict(
+        "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 c],
+        "sk" => Dict(
+            "Atom" => 1,
+            "Layer" => 2,
+            "Pos" => 3,
+            "Spin" => 4,
+            "Orbital" => 5,
+            "Glyph" => 6,
+            "Color" => 7,
+        ),
+        "sites" => [
+            ("B", 1, [0.0, a / sqrt(3), -c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 1, [0.0, -a / sqrt(3), -c / 2], (0 // 1, [1]), (1, [2]), :circle, :orange,),
+        ],
+        "filling" => 0.5,
+    )
+    merge(asd, SGWHA())
+end
+
+export SGASD2
+function SGASD2()
+    a = 0.2512
+    c = 0.333
+    asd = Dict(
+        "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 2*c],
+        "sk" => Dict("Atom" => 1, "Layer" => 2,"Pos" => 3,"Spin" => 4,"Orbital" => 5,"Glyph" => 6,"Color" => 7),
+        "sites" => [
+            ("B", 1, [0.0, a / sqrt(3), -c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 1, [0.0, -a / sqrt(3), -c / 2],(0 // 1, [1]), (1, [2]), :circle, :orange),
+            ("B", 2, [0.0, a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 2, [0.0, -a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :orange),
+        ],
+        "filling" => 0.5,
+    )
+    merge(asd, SGWHA())
+end
+
+
+export SGASD4
+function SGASD4()
+    a = 0.2512
+    c = 0.333
+    asd = Dict(
+        "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 4*c],
+        "sk" => Dict(
+            "Atom" => 1,
+            "Layer" => 2,
+            "Pos" => 3,
+            "Spin" => 4,
+            "Orbital" => 5,
+            "Glyph" => 6,
+            "Color" => 7,
+        ),
+        "sites" => [
+            ("B", 1, [0.0, -a / sqrt(3), -3c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 1, [0.0, a / sqrt(3), -3c / 2],  (0 // 1, [1]), (1, [2]), :circle, :orange),
+            ("B", 1, [0.0, a / sqrt(3), -c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 1, [0.0, -a / sqrt(3), -c / 2], (0 // 1, [1]), (1, [2]), :circle, :orange),
+            ("B", 2, [0.0, a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 2, [0.0, -a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :orange),
+            ("B", 2, [0.0, -a / sqrt(3), 3c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 2, [0.0, a / sqrt(3), 3c / 2], (0 // 1, [1]), (1, [2]), :circle, :orange),
+        ],
+        "filling" => 0.5,
+    )
+    merge(asd, SGWHA())
+end
+
+##########################################
 #### Graphene Systems
 ##########################################
 
-export G
+export G1
 export GAA
 export GBernal
 
@@ -591,7 +689,7 @@ function Graphene_Scales(a,c,δ,vppσ,vppπ,ϵCC)
     )
 end
 
-function G()
+function G1()
     a=0.246
     c=0.335
     δ= 0.184*a

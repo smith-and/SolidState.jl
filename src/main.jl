@@ -748,7 +748,7 @@ end
 function integral(RN, asd, mn, dtype::Type{T} where T <: SolidState.DataChart, indices, priors, base, Neval, pool=default_worker_pool(), cachedir=ENV["cachedir"], scriptdir=ENV["scriptdir"]; force=false)
 
     println("Calculating Integral for $asd $(mn[1])-$(mn[2]) with $Neval points");flush(stdout)
-    models(asd,[mn])
+    models(asd,[mn],force)
     di0 = DataIntegral(asd, mn, dtype, indices, priors, base)
 
     di = di0(Neval, pool)

@@ -861,6 +861,8 @@ function structured_band_broken(dict, α, nbands, 𝒪; args...)
         ylims = ((EminVal.- EmaxVal*α)*1.1,(EmaxCon .- EminCon*α)*1.1),
         grid = :all,
         gridalpha = 0.25,
+        ytickfontsize = 12,
+        yrot = 30,
         args...
     )
 
