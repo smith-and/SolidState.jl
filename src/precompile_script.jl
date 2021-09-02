@@ -2,7 +2,7 @@
 using Distributed
 addprocs(2)
 #Augment LOAD_PATH
-@everywhere using SolidState
+@everywhere using SolidState, OrderedCollections, LinearAlgebra, BSON, Measures
 
 function precompile_main()
     #Set Paths for running
