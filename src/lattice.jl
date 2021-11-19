@@ -133,6 +133,16 @@ function LayerShiftASD(ASD,shifts::Vector{Vector{Float64}})
     ASD
 end
 
+function LayerShiftASD(ASD,layer::Int,shift::Vector{Float64})
+    for i ∈ 1:length(ASD["sites"])
+        if ASD["sites"][i][2] == layer
+            ASD["sites"][i][3] .+= shift
+        end
+    end
+    ASD
+end
+
+
 #Layer two ASD on top of each other
 function LayerASD(ASD,n)
     n==1 && return ASD;
@@ -332,4 +342,97 @@ function hull_comargs(dmin,dmax)
         end
 
         return θhullca[dmin .< θhullLM .< dmax]
+end
+
+########################################################################
+#### Commensurate Twist Indices
+########################################################################
+
+
+
+function first_series(mmin,mmax)
+        args = Vector{Tuple{Int64,Int64}}(undef,length(mmin:mmax))
+        for (i,n) ∈ enumerate(mmin:mmax)
+                args[i] = (1,n)
+        end
+        args
+end
+
+function principal_series(mmin,mmax)
+        args = Vector{Tuple{Int64,Int64}}(undef,length(mmin:mmax))
+        for (i,m) ∈ enumerate(mmin:mmax)
+                args[i] = (m,m+1)
+        end
+        args
+end
+
+dimx((m,n)) = (SolidState.TwistedTriangularGeometry(ASD2()["blv"],(m,n))["blv"]|>det)/(ASD2()["blv"]|>det)
+function hull_series(mmin,mmax)
+        args = union(vcat(principal_series(mmin,mmax),first_series(mmin,mmax)))
+        sizeargs = dimx.(args)
+
+        args[sortperm(sizeargs)]
+end
+
+function bulkhead_series(dmin,dmax)
+        #need way to relate these to the dcut
+        (mm,sm) = (200,200)
+        θid = [(m,m+s) for m∈0:mm for s∈0:sm]
+        θsp = [SolidState.cθ(m,m+s)*180/π for m∈0:mm for s∈0:sm]
+        θLM = [dimx((m,m+s)) for m∈0:mm for s∈0:sm]
+
+        LMmask= 0 .< θLM .< dmax
+        unqθ = (union(round.(θsp[LMmask],digits=4)))
+        θspargs = [findall(x->round(x,digits=4)==θ,θsp[LMmask]) for θ∈unqθ]
+        θLMcopies=getindex.(Ref(θLM[LMmask]),θspargs)
+        θidcopies=getindex.(Ref(θid[LMmask]),θspargs)
+
+        θhullid = Vector{typeof(θid[1])}(undef,length(unqθ))
+        θhullLM = Vector{typeof(θLM[1])}(undef,length(unqθ))
+        for (i,LMs) ∈ enumerate(θLMcopies)
+                θhullid[i] = θidcopies[i][argmin(LMs)]
+                θhullLM[i] = θLMcopies[i][argmin(LMs)]
+        end
+
+        return θhullid[dmin .< θhullLM .< dmax][sortperm(θhullLM[dmin .< θhullLM .< dmax])]
+end
+
+### Commensurate Arg Plot
+function full_series(dmin,dmax)
+        #need way to relate these to the dcut
+        (mm,sm) = (200,200)
+        θid = [(m,m+s) for m∈-mm:mm for s∈-sm:sm]
+        θsp = [SolidState.cθ(m,m+s)*180/π for m∈-mm:mm for s∈-sm:sm]
+        θLM = [dimx((m,m+s)) for m∈-mm:mm for s∈-sm:sm]
+
+        LMmask= 0 .< θLM .< dmax
+        unqθ = (union(round.(θsp[LMmask],digits=4)))
+        θspargs = [findall(x->round(x,digits=4)==θ,θsp[LMmask]) for θ∈unqθ]
+        θLMcopies=getindex.(Ref(θLM[LMmask]),θspargs)
+        θidcopies=getindex.(Ref(θid[LMmask]),θspargs)
+
+        θhullid = Vector{typeof(θid[1])}(undef,length(unqθ))
+        θhullLM = Vector{typeof(θLM[1])}(undef,length(unqθ))
+        for (i,LMs) ∈ enumerate(θLMcopies)
+                θhullid[i] = θidcopies[i][argmin(LMs)]
+                θhullLM[i] = θLMcopies[i][argmin(LMs)]
+        end
+
+        return θhullid[dmin .< θhullLM .< dmax][sortperm(θhullLM[dmin .< θhullLM .< dmax])]
+end
+
+function twist_series(series,mmin,mmax)
+        if series==:first
+                return first_series(mmin, mmax)
+        elseif series==:principal
+                return principal_series(mmin, mmax)
+        elseif series==:hull
+                return hull_series(mmin,mmax)
+        elseif series==:bulkhead
+                return bulkhead_series(mmin,mmax)
+        elseif series==:full
+                return full_series(mmin,mmax)
+        elseif series==:mn
+                return [(mmin,mmax)]
+        end
 end

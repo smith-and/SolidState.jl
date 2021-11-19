@@ -9,30 +9,23 @@ module SolidState
 
     export KinematicOperators, KinematicDensity
     export HamiltonianOperators, HamiltonianDensity
-    include("ops/lattice.jl")
-    include("ops/structures.jl")
-    include("ops/kinematic_ops.jl")
+    include("lattice.jl")
+    include("structures.jl")
+    include("kinematic_ops.jl")
+    include("projectors.jl")
 
     export TightBindingInfo, TightBindingDensity
-    include("ops/tightbinding.jl")
+    include("tightbinding.jl")
 
     export TensorChart, DataMap, DataIntegral, DataSection, data_export, data_import
-    include("ops/datastructures.jl")
-    include("ops/spectral_charts.jl")
-    include("ops/optical_charts.jl")
-
-    # Execute scaling analysis
-    include("scaling.jl")
+    include("datastructures.jl")
+    include("spectral_charts.jl")
+    include("optical_charts.jl")
 
     # Method Bridge to Bashing
     include("main.jl")
-    include("new_main.jl")
+    # include("new_main.jl")
 
-    # Post Processing
-    include("extraction.jl")
-    include("plots.jl")
-
-    # Submodule for different interactive apps
-    # include("apps.jl")
+    include("group_theory.jl")
 
 end

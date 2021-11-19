@@ -1,7 +1,7 @@
 """
-   abstract type DataChart end
+   abstract type ChartType end
 """
-abstract type DataChart end
+abstract type ChartType end
 
 """
 const RangeType = Union{
@@ -20,7 +20,7 @@ const RangeType = Union{
       }
 
 """
-struct ChartInfo{T <: DataChart, RT1 <: RangeType, RT2 <: RangeType, RT3 <: RangeType, CAT <: Union{Tuple{Int,Int}}}
+struct ChartInfo{T <: ChartType, RT1 <: RangeType, RT2 <: RangeType, RT3 <: RangeType, CAT <: Union{Tuple{Int,Int}}}
     type::Type{T}
     indices::RT1
     priors::RT2
@@ -28,7 +28,7 @@ struct ChartInfo{T <: DataChart, RT1 <: RangeType, RT2 <: RangeType, RT3 <: Rang
     mn::CAT
 end
 """
-struct ChartInfo{T <: DataChart, RT1 <: RangeType, RT2 <: RangeType, RT3 <: RangeType, CAT <: Union{Tuple{Int,Int}}}
+struct ChartInfo{T <: ChartType, RT1 <: RangeType, RT2 <: RangeType, RT3 <: RangeType, CAT <: Union{Tuple{Int,Int}}}
     type::Type{T}
     indices::RT1
     priors::RT2
@@ -38,38 +38,39 @@ end
 
 """
 function ChartInfo()
-   ChartInfo(DataChart,[(1,)],[(1,)],[(1,)],(0,0))
+   ChartInfo(ChartType,[(1,)],[(1,)],[(1,)],(0,0))
 end
 """
 function ChartInfo()
-   ChartInfo(DataChart,[(1,)],[(1,)],[(1,)],(0,0))
+   ChartInfo(ChartType,[(1,)],[(1,)],[(1,)],(0,0))
 end
 
 """
-   TensorChart{IndexT <: AbstractArray, PriorT <: AbstractArray, BaseT <: AbstractArray, DataT <: AbstractArray}
+   DataChart{IndexT <: AbstractArray, PriorT <: AbstractArray, BaseT <: AbstractArray, DataT <: AbstractArray}
 
 A generic structure to hold Tensor Data
 """
-struct TensorChart{IndexT <: AbstractArray, PriorT <: AbstractArray, BaseT <: AbstractArray, DataT <: AbstractArray}
-   indices::IndexT
-   priors::PriorT
-   base::BaseT
-   data::DataT
-   l_i::Int
-   l_p::Int
-   l_b::Int
+struct DataChart{CT <: ChartType, IndexT <: AbstractArray, PriorT <: AbstractArray, BaseT <: AbstractArray, DataT <: AbstractArray}
+    name::Type{CT}
+    indices::IndexT
+    priors::PriorT
+    base::BaseT
+    data::DataT
+    l_i::Int
+    l_p::Int
+    l_b::Int
 end
 
 """
-   TensorChart(Indices::AbstractArray, Priors::AbstractArray, Base::AbstractArray, DType::DataType; style=:normal)
+   DataChart(Indices::AbstractArray, Priors::AbstractArray, Base::AbstractArray, DType::DataType; style=:normal)
 """
-function TensorChart(Indices::AbstractArray, Priors::AbstractArray, Base::AbstractArray, DType::DataType; style=:normal)
+function DataChart(chart_type::(Type{T} where T <: ChartType), Indices::AbstractArray, Priors::AbstractArray, Base::AbstractArray, DType::DataType; style=:normal)
    if      style == :static
-      TensorChart(Indices, Priors, Base, @MArray(zeros(DType,(size(Indices)...,size(Priors)...,size(Base)...)...)) ,length(Indices),length(Priors),length(Base))
+      DataChart(chart_type,Indices, Priors, Base, @MArray(zeros(DType,(size(Indices)...,size(Priors)...,size(Base)...)...)) ,length(Indices),length(Priors),length(Base))
    elseif  style ==:shared
-      TensorChart(SharedArray(Indices), SharedArray(Priors), SharedArray(Base), SharedArray(zeros(DType,(size(Indices)...,size(Priors)...,size(Base)...))),length(Indices),length(Priors),length(Base))
+      DataChart(chart_type,SharedArray(Indices), SharedArray(Priors), SharedArray(Base), SharedArray(zeros(DType,(size(Indices)...,size(Priors)...,size(Base)...))),length(Indices),length(Priors),length(Base))
    else
-      TensorChart(Indices, Priors, Base, (zeros(DType,(size(Indices)...,size(Priors)...,size(Base)...)...)),length(Indices),length(Priors),length(Base))
+      DataChart(chart_type,Indices, Priors, Base, (zeros(DType,(size(Indices)...,size(Priors)...,size(Base)...)...)),length(Indices),length(Priors),length(Base))
    end
 end
 
@@ -77,35 +78,26 @@ end
 #### DataMap
 #############################
 
-# A functional layer which allows the specific data charts define maps for data
-"""
-    DataMap{ChartType <: DataChart, KType <: KinematicDensity, LType <: AbstractArray}
-"""
-struct DataMap{ChartType <: DataChart, KType <: KinematicDensity, LType <: AbstractArray}
+struct DataMap{ChartType <: DataChart, KType <: KinematicDensity, PT<: Projector, LType <: AbstractArray, IType <: NamedTuple}
     d::Int
     Ω::Float64
     Λ::LType
     K::KType
     chart::ChartType
+    P::PT
+    input::IType
 end
 
-"""
-"""
 function range_scope(rng::Vector{Tuple{Symbol,N,N,Int64}} where N <: Number)::(Array{NTuple{N1,N}, N1} where {N1, N <: Number})
     collect(Iterators.product(LinRange.(getindex.(rng,2),getindex.(rng,3),getindex.(rng,4) )...))
 end
 
-"""
-"""
 function range_scope(type::Symbol,dim::Int64)::(Array{NTuple{N1,N}, N1} where {N1, N <: Number})
     if type==:dims
         return collect(Iterators.product(1:dim))
     end
 end
 
-"""
-    bandwidth_range(asd, hd, Nb)
-"""
 function bandwidth_range(asd, hd, Nb)
     pts = getindex.(Ref(getindex(asd|>ASDGeometry,"bz_hs")),["Q1","M1","K1","Γ"])
     emin = 0.0 ; emax = 0.0;
@@ -117,50 +109,43 @@ function bandwidth_range(asd, hd, Nb)
     range_scope([(:ω,1.1*emin,1.1*emax,Nb)])
 end
 
-"""
-    dim_kron(dim::Int, inds::AbstractVector)
-dim_kron(10,[(1,2),(1,1),(2,2)])
-"""
 function dim_kron(dim::Int, inds::AbstractVector)
     Iterators.product(inds,collect(1:dim))|>collect
 end
-"""
-    dim_kron(dim::Int, inds::NTuple{N,T} where {N, T <: AbstractRange})
 
-dim_kron(10,(1:2,1:2))
-"""
 function dim_kron(dim::Int, inds::NTuple{N,T} where {N, T <: AbstractRange})
     Iterators.product(Iterators.product(inds...),1:dim)|>collect
 end
 
-"""
-    input_process(asd,hd,indices,prange,brange)
-"""
 function input_process(asd,hd,indices,prange,brange)
     priors = range_scope(prange)
     if typeof(brange)==Symbol
         base = range_scope(brange,dim_h)
     elseif typeof(brange)==Tuple{Symbol,Symbol,Int}
         base = bandwidth_range(asd,hd,brange[3])
+    elseif indices[1]==:bands||indices[1]==:bandstructure
+        base = SolidState.Main.path_points(asd,brange...)
     else
         base = range_scope(brange)
     end
 
     newindices = indices
     if indices[1]==:dimkron
-
         inds = indices[2]
         dim = size(hd.h_ops.h,1)
 
         newindices = dim_kron(dim,inds)
+    elseif indices[1]==:bandstructure
+        dim = size(hd.h_ops.h,1)
+        newindices = ones(dim,dim+1)
+    elseif indices[1]==:bands
+        dim = size(hd.h_ops.h,1)
+        newindices = ones(dim)
     end
 
     (newindices,priors,base)
 end
 
-"""
-    domain_map(Λ0,asd)
-"""
 function domain_map(Λ0,asd)
     if Λ0 == :auto
         return (asd|>ASDGeometry)["dxtal"][1][1:3,1:2]
@@ -171,10 +156,8 @@ function domain_map(Λ0,asd)
     end
 end
 
-"""
-    DataMap(dtype::(Type{T} where T <: DataChart), asd::Dict{String,Any}, indices0, prange, brange; Λ0=:auto, style=:normal)
-"""
-function DataMap(dtype::(Type{T} where T <: DataChart), asd::Dict{String,Any}, indices0, prange, brange; Λ0=:auto, style=:normal)
+function DataMap( asd0::Function, dtype::(Type{T} where T <: ChartType), indices0, prange, brange; pnames = [:layer], Λ0=:auto, style=:normal)
+    asd = asd0()
     Λ = domain_map(Λ0,asd)
     Ω = asd["blv"]|>det
 
@@ -182,32 +165,54 @@ function DataMap(dtype::(Type{T} where T <: DataChart), asd::Dict{String,Any}, i
     (indices,priors,base) = input_process(asd,hd,indices0,prange,brange)
     dim_h   = size(hd.h_ops.h,1)
     K       = KinematicDensity(hd,priors);
-    chart = dtype(TensorChart(indices,priors,base,Complex{Float64};style=style))
+    chart = DataChart(dtype,indices,priors,base,Complex{Float64};style=style)
+    P = Projector(asd,pnames)
 
-    DataMap(dim_h,Ω,Λ,K,chart)
+    inputs = (
+        asd = asd0,
+        mn = (1,1),
+        indices= indices0,
+        priors = prange,
+        base   = brange,
+        Λ      = Λ0,
+        projectors = pnames,
+        style = style,
+    )
+
+    DataMap(dim_h,Ω,Λ,K,chart,P,inputs)
 end
 
-"""
-    DataMap(dtype::(Type{T} where T <: DataChart), asd::Dict{String,Any}, hd::HamiltonianDensity, indices0, prange, brange; Λ0=:auto, style=:normal)
-"""
-function DataMap(dtype::(Type{T} where T <: DataChart), asd::Dict{String,Any}, hd::HamiltonianDensity, indices0, prange, brange; Λ0=:auto, style=:normal)
+function DataMap( asd0::Function, hd::H where H <: HamiltonianDensity, dtype::(Type{T} where T <: ChartType), indices0, prange, brange; pnames = [:layer],  Λ0=:auto, style=:normal)
+    asd = asd0()
     Λ = domain_map(Λ0,asd)
     Ω = asd["blv"]|>det
 
     (indices,priors,base) = input_process(asd,hd,indices0,prange,brange)
     dim_h   = size(hd.h_ops.h,1)
     K       = KinematicDensity(hd,priors)
-    chart = dtype(TensorChart(indices,priors,base,Complex{Float64};style=style))
+    chart = DataChart(dtype,indices,priors,base,Complex{Float64};style=style)
+    P = Projector(asd,pnames)
 
-    DataMap(dim_h,Ω,Λ,K,chart)
+    inputs = (
+        asd = asd0,
+        mn = (1,1),
+        indices= indices0,
+        priors = prange,
+        base   = brange,
+        Λ      = Λ0,
+        projectors = pnames,
+        style = style,
+    )
+
+    DataMap(dim_h,Ω,Λ,K,chart,P,inputs)
 end
 
 """
-    DataMap(model::Symbol, dtype::(Type{T} where T <: DataChart), indices0, prange, brange; cachedir, mn, Λ0=:auto, style=:normal)
+    DataMap(model::Symbol, dtype::(Type{T} where T <: ChartType), indices0, prange, brange; cachedir, mn, Λ0=:auto, style=:normal)
 
 Uses cached model
 """
-function DataMap(asd, mn , dtype::(Type{T} where T <: DataChart), indices0, prange, brange; cachedir=ENV["cachedir"], Λ0=:auto, style=:normal)
+function DataMap(asd, mn::Tuple, dtype::(Type{T} where T <: ChartType), indices0, prange, brange; cachedir=ENV["cachedir"],  pnames = [:layer], Λ0=:auto, style=:normal)
     asd0 = BSON.load("$cachedir/$asd/asd-$(mn[1])-$(mn[2]).bson")
     hd  = data_import("$cachedir/$asd/hd-$(mn[1])-$(mn[2]).bson")
     Λ = domain_map(Λ0,asd0)
@@ -216,17 +221,29 @@ function DataMap(asd, mn , dtype::(Type{T} where T <: DataChart), indices0, pran
     (indices,priors,base) = input_process(asd0,hd,indices0,prange,brange)
     dim_h   = size(hd.h_ops.h,1)
     K       = KinematicDensity(hd,priors)
-    chart = dtype(TensorChart(indices,priors,base,Complex{Float64};style=style))
+    chart = DataChart(dtype,indices,priors,base,Complex{Float64};style=style)
+    P = Projector(asd0,pnames)
 
-    DataMap(dim_h,Ω,Λ,K,chart)
+    inputs = (
+        asd    = asd,
+        mn     = mn,
+        indices= indices0,
+        priors = prange,
+        base   = brange,
+        Λ      = Λ0,
+        projectors = pnames,
+        style = style,
+    )
+
+    DataMap(dim_h,Ω,Λ,K,chart,P,inputs)
 end
 
 """
-    DataMap(; asd, dtype::(Type{T} where T <: DataChart), indices0, prange, brange, cachedir, mn, Λ0=:auto, style=:normal)
+    DataMap(; asd, dtype::(Type{T} where T <: ChartType), indices0, prange, brange, cachedir, mn, Λ0=:auto, style=:normal)
 
 Uses cached model
 """
-function DataMap(; asd, mn, dtype::(Type{T} where T <: DataChart), indices,priors,base, cachedir=ENV["cachedir"], Λ0=:auto, style=:normal, kargs...)
+function DataMap(; asd, mn, dtype::(Type{T} where T <: ChartType), indices,priors,base, cachedir=ENV["cachedir"],  pnames = [:layer], Λ0=:auto, style=:normal, kargs...)
     asd0 = BSON.load("$cachedir/$asd/asd-$(mn[1])-$(mn[2]).bson")
     hd  = data_import("$cachedir/$asd/hd-$(mn[1])-$(mn[2]).bson")
     Λ = domain_map(Λ0,asd0)
@@ -234,16 +251,28 @@ function DataMap(; asd, mn, dtype::(Type{T} where T <: DataChart), indices,prior
     (indices0,prange,brange) = input_process(asd0,hd,indices,priors,base)
     dim_h   = size(hd.h_ops.h,1)
     K       = KinematicDensity(hd,prange)
-    chart = dtype(TensorChart(indices0,prange,brange, Complex{Float64};style=style))
+    chart = DataChart(dtype,indices0,prange,brange, Complex{Float64};style=style)
+    P = Projector(asd0,pnames)
 
-    DataMap(dim_h,Ω,Λ,K,chart)
+    inputs = (
+        asd    = asd,
+        mn     = mn,
+        indices= indices0,
+        priors = prange,
+        base   = brange,
+        Λ      = Λ0,
+        projectors = pnames,
+        style = style,
+    )
+
+    DataMap(dim_h,Ω,Λ,K,chart,P,inputs)
 end
 
 """
     DataMap(pmodel,pchart; cachedir=ENV["cachedir"], Λ0=:auto, style=:normal, kargs...)
 
 """
-function DataMap(pmodel,pchart; cachedir=ENV["cachedir"], Λ0=:auto, style=:normal, kargs...)
+function DataMap(pmodel,pchart; cachedir=ENV["cachedir"],  pnames = [:layer], Λ0=:auto, style=:normal, kargs...)
     asd0 = SolidState.make_model(pmodel)
     hd   = SolidState.make_tb_model(pmodel)
     Λ = domain_map(Λ0,asd0)
@@ -251,39 +280,59 @@ function DataMap(pmodel,pchart; cachedir=ENV["cachedir"], Λ0=:auto, style=:norm
     (indices0,prange,brange) = input_process(asd0,hd,pchart[:indices],pchart[:priors],pchart[:base])
     dim_h   = size(hd.h_ops.h,1)
     K       = KinematicDensity(hd,prange)
-    chart = pchart[:dtype](TensorChart(indices0,prange,brange,Complex{Float64};style=style))
+    chart = DataChart(pchart[:dtype],indices0,prange,brange,Complex{Float64};style=style)
+    P = Projector(asd0,pnames)
 
-    DataMap(dim_h,Ω,Λ,K,chart)
+    inputs = (
+        asd    = asd,
+        mn     = mn,
+        indices= indices0,
+        priors = prange,
+        base   = brange,
+        Λ      = Λ0,
+        projectors = pnames,
+        style = style,
+    )
+
+    DataMap(dim_h,Ω,Λ,K,chart,P,inputs)
 end
 
-"""
-    @generated function evaluate_map(dm::DataMap, k::AbstractVector, section::T where T <: DataChart)
-
-"""
-@generated function evaluate_map(dm::DataMap, k::AbstractVector, section::T where T <: DataChart)
-    name = fieldname(section,1)
-    chart = fieldtypes(fieldtype(section,1))[end-3]
+@generated function evaluate_map(dm::DataMap, k::AbstractVector)
+    dtype = ((dm|>fieldtypes)[5]|>fieldtypes)[1]
+    dname = "$dtype"[6:end-1]
     quote
-        $(Symbol(name,:(_evaluation)))(section.$name, dm.K, k, dm.d)
+        $(Symbol(dname,:(_evaluation)))(dm.chart, dm.P, dm.K, k, dm.d)
     end
 end
 
-"""
-    (dm::DataMap)(n::AbstractVector)
-
-passes  dm.Λ*n to the DataMap
-"""
 function (dm::DataMap)(n::AbstractVector)
-    evaluate_map(dm, dm.Λ*n, dm.chart)
+    evaluate_map(dm, dm.Λ*n)
 end
 
-"""
-(dm::DataMap)(n::NTuple{N,F} where {N,F <: Number})
+function (dm::DataMap)()
+    evaluate_map(dm, [0.0,0.0,0.0])
+end
 
-passes eachcol(dm.Λ).*n|>sum to the DataMap
+
 """
-function (dm::DataMap)(n::NTuple{N,F} where {N,F <: Number})
-    evaluate_map(dm, eachcol(dm.Λ).*n|>sum, dm.chart)
+    VOL
+"""
+abstract type VOL <: ChartType end
+
+function VOL_evaluation(tc::DataChart, P::Projector, K0::KinematicDensity, k::AbstractVector , dim_ℋ::Int64)
+    evaluate_km(K0,k)
+    K = K0.k_m
+    H = K0.hd
+    tc.data .= 0.0
+    for (ii,(a,b,c)) ∈ enumerate(tc.indices)
+        for (ib,(ω,)) ∈ enumerate(tc.base)
+            for (ip,(T,μ,δ)) ∈ enumerate(tc.priors)
+                @fastmath idx = ii + ((ip-1) + (ib-1)*tc.l_p)*tc.l_i
+                @fastmath @inbounds tc.data[idx] = Complex(1.0)
+            end
+        end
+    end
+    SArray(tc.data)
 end
 
 ##################################
@@ -311,39 +360,39 @@ end
     DataIntegral(dm::DM, a::AV=[0.0,0.0], b::AV=[1.0,1.0];cachedir::String="none", ranges::ChartInfo=ChartInfo())::DataIntegral where {AV <: AbstractVector, DM <: DataMap, PT <: Union{AbstractWorkerPool,Symbol}}
 """
 function DataIntegral(dm::DM, a::AV=[0.0,0.0], b::AV=[1.0,1.0];cachedir=ENV["cachedir"], ranges::ChartInfo=ChartInfo())::DataIntegral where {AV <: AbstractVector, DM <: DataMap, PT <: Union{AbstractWorkerPool,Symbol}}
-    DataIntegral(dm,a,b,typeof(1.0)[],typeof(1.0)[],typeof(1)[],typeof(1)[],typeof(getfield(dm.chart,1).data)[],ranges,cachedir)
+    DataIntegral(dm,a,b,typeof(1.0)[],typeof(1.0)[],typeof(1)[],typeof(1)[],typeof(dm.chart.data)[],ranges,cachedir)
 end
 
 #Construction with map description
 """
-    DataIntegral(datatype::Type{T} where T <: DataChart,asd::Dict{String,Any},hd::HamiltonianDensity,indices,priors,base; a::AV=[0.0,0.0], b::AV =[1.0,1.0])::DataIntegral  where {AV <: AbstractVector, DM <: DataMap}
+    DataIntegral(datatype::Type{T} where T <: ChartType,asd::Dict{String,Any},hd::HamiltonianDensity,indices,priors,base; a::AV=[0.0,0.0], b::AV =[1.0,1.0])::DataIntegral  where {AV <: AbstractVector, DM <: DataMap}
 """
-function DataIntegral(datatype::Type{T} where T <: DataChart,asd::Dict{String,Any},hd::HamiltonianDensity,indices,priors,base; a::AV=[0.0,0.0], b::AV =[1.0,1.0])::DataIntegral  where {AV <: AbstractVector, DM <: DataMap}
-    dm  = DataMap(datatype,asd,hd,indices,priors,base);
+function DataIntegral(asd::Dict{String,Any},hd::HamiltonianDensity,datatype::ChartType,indices,priors,base; a::AV=[0.0,0.0], b::AV =[1.0,1.0])::DataIntegral  where {AV <: AbstractVector, DM <: DataMap}
+    dm  = DataMap(asd,hd,datatype,indices,priors,base);
     DataIntegral(dm,a,b, ranges=ChartInfo(datatype,indices,priors,base,(0,0)),cachedir=pwd())
 end
 
 """
-    DataIntegral(asd, mn, datatype::Type{T} where T <: DataChart,indices,priors, base, cachedir=ENV["cachedir"], a::AV=[0.0,0.0], b::AV =[1.0,1.0])::DataIntegral  where {AV <: AbstractVector}
+    DataIntegral(asd, mn, datatype::Type{T} where T <: ChartType,indices,priors, base, cachedir=ENV["cachedir"], a::AV=[0.0,0.0], b::AV =[1.0,1.0])::DataIntegral  where {AV <: AbstractVector}
 
 Construction with cached objects & description
 """
-function DataIntegral(asd, mn, datatype::Type{T} where T <: DataChart,indices,priors, base, cachedir=ENV["cachedir"], a::AV=[0.0,0.0], b::AV =[1.0,1.0])::DataIntegral  where {AV <: AbstractVector}
+function DataIntegral(asd, mn, datatype,indices,priors, base, cachedir=ENV["cachedir"], a::AV=[0.0,0.0], b::AV =[1.0,1.0])::DataIntegral  where {AV <: AbstractVector}
     ASD = BSON.load("$cachedir/$asd/asd-$(mn[1])-$(mn[2]).bson")
     hd  = data_import("$cachedir/$asd/hd-$(mn[1])-$(mn[2]).bson")
-    dm = DataMap(datatype,ASD,hd,indices,priors,base);
+    dm = DataMap(()->ASD,hd,datatype,indices,priors,base);
     DataIntegral(dm,a,b; ranges=ChartInfo(datatype,indices,priors,base,mn),cachedir="$cachedir/$asd")
 end
 
 """
-    DataIntegral(; asd, dtype::Type{T} where T <: DataChart,indices,priors, base, cachedir, mn, a::AV=[0.0,0.0], b::AV =[1.0,1.0], kargs...)::DataIntegral  where {AV <: AbstractVector}
+    DataIntegral(; asd, dtype::Type{T} where T <: ChartType,indices,priors, base, cachedir, mn, a::AV=[0.0,0.0], b::AV =[1.0,1.0], kargs...)::DataIntegral  where {AV <: AbstractVector}
 
 Construction with cached objects & description
 """
-function DataIntegral(; asd, mn, dtype::Type{T} where T <: DataChart, indices, priors, base, a::AV=[0.0,0.0], b::AV =[1.0,1.0], cachedir=ENV["cachedir"], kargs...)::DataIntegral  where {AV <: AbstractVector}
+function DataIntegral(; asd, mn, dtype::ChartType, indices, priors, base, a::AV=[0.0,0.0], b::AV =[1.0,1.0], cachedir=ENV["cachedir"], kargs...)::DataIntegral  where {AV <: AbstractVector}
     asd0 = BSON.load("$cachedir/$asd/asd-$(mn[1])-$(mn[2]).bson")
     hd  = data_import("$cachedir/$asd/hd-$(mn[1])-$(mn[2]).bson")
-    dm = DataMap(dtype,asd0,hd,indices,priors,base);
+    dm = DataMap(asd0,hd,dtype,indices,priors,base);
     DataIntegral(dm,a,b; ranges=ChartInfo(dtype,indices,priors,base,mn),cachedir="$cachedir/$asd")
 end
 
@@ -353,7 +402,7 @@ end
 function DataIntegral(ci::ChartInfo, cachedir::String=ENV["cachedir"]; a::AbstractVector=[0.0,0.0], b::AbstractVector =[1.0,1.0])::DataIntegral
     asd = BSON.load("$cachedir/asd-$(ci.mn[1])-$(ci.mn[2]).bson")
     hd  = data_import("$cachedir/hd-$(ci.mn[1])-$(ci.mn[2]).bson")
-    dm = DataMap(datatype,asd,hd,indices,priors,base);
+    dm = DataMap(asd,hd,datatype,indices,priors,base);
     DataIntegral(dm,a,b; ranges=ci,cachedir=cachedir)
 end
 
@@ -363,11 +412,11 @@ end
 Core Call to HCubature
 """
 function integrate(dm::DM where DM <: DataMap, a::AbstractVector, b::AbstractVector, pool::Symbol; rtol=1e-12, atol=1e-12, evals::Int=typemax(Int), kwargs...)::Float64
-    getfield(dm.chart,1).data .*= 0.0
-    integral,int_error = hcubature(dm, a, b; norm=norm, rtol=rtol, atol=atol, maxevals=evals, initdiv=1)::Tuple{typeof(getfield(dm.chart,1).data),typeof(1.0)}
-    getfield(dm.chart,1).data .= integral./(dm.Ω/(2π)^size(dm.Λ,1))
+    dm.chart.data .*= 0.0
+    integral,int_error = hcubature(dm, a, b; norm=norm, rtol=rtol, atol=atol, maxevals=evals, initdiv=1)::Tuple{typeof(dm.chart.data),typeof(1.0)}
+    dm.chart.data .= integral./(dm.Ω/(2π)^size(dm.Λ,1))
 
-    int_error/(getfield(dm.chart,1).data|>length)
+    int_error/(dm.chart.data|>length)
 end
 
 """
@@ -390,7 +439,7 @@ function cointegrate(ci::ChartInfo,evals,cachedir,a,b)
     mn = ci.mn
     asd = BSON.load("$cachedir/asd-$(mn[1])-$(mn[2]).bson")
     hd  = data_import("$cachedir/hd-$(mn[1])-$(mn[2]).bson")
-    dm  = DataMap(ci.type,asd,hd,ci.indices,ci.priors,ci.base);
+    dm  = DataMap(()->asd,hd,ci.type,ci.indices,ci.priors,ci.base);
     di  = DataIntegral(dm,a,b)
     di(evals)
 
@@ -407,26 +456,26 @@ function integrate(dm::DM where DM <: DataMap, a::AbstractVector, b::AbstractVec
     #Hold global eval count fixed
     Nevals = Int.(round.(evals./nw))
     futures = Vector{Future}(undef, nw)
+
     for i=1:nw
         futures[i] = @spawnat(pool,cointegrate(ranges,Nevals,cachedir,as[i],bs[i]))
     end
 
     #initialize
     err = zeros(typeof(0.0),length(Nevals))
-    data = Vector{typeof(getfield(dm.chart,1).data)}(undef,length(Nevals))
+    data = Vector{typeof(dm.chart.data)}(undef,length(Nevals))
     for i=1:length(Nevals)
-        data[i] = zero(getfield(dm.chart,1).data)
+        data[i] = zero(dm.chart.data)
     end
-
     for (i,fut) ∈ enumerate(futures)
         wdata,werr = fetch(fut)
-        #::Tuple{Vector{typeof(getfield(dm.chart,1).data)},Vector{Float64}}
+        #::Tuple{Vector{typeof(dm.chart.data)},Vector{Float64}}
         err .+= werr.^2
         for i ∈ 1:length(wdata)
             data[i] .+= wdata[i]
         end
     end
-    err .= sqrt.(err)./(getfield(dm.chart,1).data|>length)
+    err .= sqrt.(err)./(dm.chart.data|>length)
 
     di = DataIntegral(dm,a,b,ranges=ranges,cachedir=ENV["cachedir"])
 
@@ -456,10 +505,6 @@ function (di::DataIntegral)(evals::Union{AbstractRange,Vector{Int64}}, pool::Sym
     di
 end
 
-# """
-#     (di::DataIntegral)(evals::Int, pool::Symbol = :none, atol = 1e-20, rtol = 1e-20)::DataIntegral
-#
-# """
 function (di::DataIntegral)(evals::Int, pool::Symbol = :none, atol = 1e-20, rtol = 1e-20)::DataIntegral
     #integration line
     stats = @timed(integrate(di.dm, di.a, di.b, pool; evals = evals, rtol=rtol, atol=atol, ranges=di.chartinfo, cachedir=di.cachedir))
@@ -469,7 +514,7 @@ function (di::DataIntegral)(evals::Int, pool::Symbol = :none, atol = 1e-20, rtol
     push!(di.err,   stats.value)
     push!(di.times, stats.time/3600)
     push!(di.bytes, stats.bytes)
-    push!(di.data,  copy(getfield(di.dm.chart,1).data))
+    push!(di.data,  copy(di.dm.chart.data))
 
     #print to stdout
     #println("did $(fieldnames(di.dm.chart|>typeof)[1]) integral w/ $(evals) pts in $(round(stats.time,sigdigits=3))s or $(round(stats.time/3600,sigdigits=3)) SUs");flush(stdout)
@@ -491,11 +536,11 @@ end
 ##############################
 
 """
-    DataSection{DM <: DataMap, TC <: TensorChart}
+    DataSection{DM <: DataMap, TC <: DataChart}
 
 A structure to hold sampling information of DataMaps over the sampling base space
 """
-struct DataSection{DM <: DataMap, TC <: TensorChart}
+struct DataSection{DM <: DataMap, TC <: DataChart}
     datadim::Int
     dm::DM
     chart::TC
@@ -539,10 +584,10 @@ end
 A Data Section constructor with a range input
 """
 function DataSection(dm::DataMap, dom::Vector{Tuple{Symbol,N,N,Int64}} where N <: Number)
-    chart = getfield(dm.chart,1)
+    chart = dm.chart
     priors  = prior_base_combine(chart.priors,chart.base)
     dombase = range_scope(dom)
-    DataSection(chart.l_i*chart.l_p*chart.l_b, dm, TensorChart(chart.indices,priors,dombase,eltype(chart.data)))
+    DataSection(chart.l_i*chart.l_p*chart.l_b, dm, DataChart(dm.chart.name,chart.indices,priors,dombase,eltype(chart.data)))
 end
 
 """
@@ -551,10 +596,10 @@ end
 DataSection constructor
 """
 function DataSection(dm::DataMap, dom::AbstractArray)
-    chart = getfield(dm.chart,1)
+    chart = dm.chart
     priors  = prior_base_combine(chart.priors,chart.base)
 
-    DataSection(chart.l_i*chart.l_p*chart.l_b, dm,TensorChart(chart.indices,priors,dom,eltype(chart.data)))
+    DataSection(chart.l_i*chart.l_p*chart.l_b, dm,DataChart(dm.chart.name,chart.indices,priors,dom,eltype(chart.data)))
 end
 
 """
@@ -667,7 +712,7 @@ function integral_data(ds::DataSection)
         ds_integral .+= ds.chart.data[brng]*base_weights[i]
     end
 
-    di_copy = zero(getfield(ds.dm.chart,1).data)
+    di_copy = zero(ds.dm.chart.data)
     di_copy[:] .= ds_integral ./((sqrt(length(base_weights))-1)^2*6*(ds.dm.Ω/(2π)^size(ds.dm.Λ,1)))
 
     di_copy

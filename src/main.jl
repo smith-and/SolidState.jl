@@ -60,93 +60,6 @@ end
 #### Make Tightbinding Models
 ######################################
 
-function first_series(mmin,mmax)
-        args = Vector{Tuple{Int64,Int64}}(undef,length(mmin:mmax))
-        for (i,n) ∈ enumerate(mmin:mmax)
-                args[i] = (1,n)
-        end
-        args
-end
-
-function principal_series(mmin,mmax)
-        args = Vector{Tuple{Int64,Int64}}(undef,length(mmin:mmax))
-        for (i,m) ∈ enumerate(mmin:mmax)
-                args[i] = (m,m+1)
-        end
-        args
-end
-
-dimx((m,n)) = (SolidState.TwistedTriangularGeometry(ASD2()["blv"],(m,n))["blv"]|>det)/(ASD2()["blv"]|>det)
-function hull_series(mmin,mmax)
-        args = union(vcat(principal_series(mmin,mmax),first_series(mmin,mmax)))
-        sizeargs = dimx.(args)
-
-        args[sortperm(sizeargs)]
-end
-
-function bulkhead_series(dmin,dmax)
-        #need way to relate these to the dcut
-        (mm,sm) = (200,200)
-        θid = [(m,m+s) for m∈0:mm for s∈0:sm]
-        θsp = [SolidState.cθ(m,m+s)*180/π for m∈0:mm for s∈0:sm]
-        θLM = [dimx((m,m+s)) for m∈0:mm for s∈0:sm]
-
-        LMmask= 0 .< θLM .< dmax
-        unqθ = (union(round.(θsp[LMmask],digits=4)))
-        θspargs = [findall(x->round(x,digits=4)==θ,θsp[LMmask]) for θ∈unqθ]
-        θLMcopies=getindex.(Ref(θLM[LMmask]),θspargs)
-        θidcopies=getindex.(Ref(θid[LMmask]),θspargs)
-
-        θhullid = Vector{typeof(θid[1])}(undef,length(unqθ))
-        θhullLM = Vector{typeof(θLM[1])}(undef,length(unqθ))
-        for (i,LMs) ∈ enumerate(θLMcopies)
-                θhullid[i] = θidcopies[i][argmin(LMs)]
-                θhullLM[i] = θLMcopies[i][argmin(LMs)]
-        end
-
-        return θhullid[dmin .< θhullLM .< dmax][sortperm(θhullLM[dmin .< θhullLM .< dmax])]
-end
-
-### Commensurate Arg Plot
-function full_series(dmin,dmax)
-        #need way to relate these to the dcut
-        (mm,sm) = (200,200)
-        θid = [(m,m+s) for m∈-mm:mm for s∈-sm:sm]
-        θsp = [SolidState.cθ(m,m+s)*180/π for m∈-mm:mm for s∈-sm:sm]
-        θLM = [dimx((m,m+s)) for m∈-mm:mm for s∈-sm:sm]
-
-        LMmask= 0 .< θLM .< dmax
-        unqθ = (union(round.(θsp[LMmask],digits=4)))
-        θspargs = [findall(x->round(x,digits=4)==θ,θsp[LMmask]) for θ∈unqθ]
-        θLMcopies=getindex.(Ref(θLM[LMmask]),θspargs)
-        θidcopies=getindex.(Ref(θid[LMmask]),θspargs)
-
-        θhullid = Vector{typeof(θid[1])}(undef,length(unqθ))
-        θhullLM = Vector{typeof(θLM[1])}(undef,length(unqθ))
-        for (i,LMs) ∈ enumerate(θLMcopies)
-                θhullid[i] = θidcopies[i][argmin(LMs)]
-                θhullLM[i] = θLMcopies[i][argmin(LMs)]
-        end
-
-        return θhullid[dmin .< θhullLM .< dmax][sortperm(θhullLM[dmin .< θhullLM .< dmax])]
-end
-
-function twist_series(series,mmin,mmax)
-        if series==:first
-                return first_series(mmin, mmax)
-        elseif series==:principal
-                return principal_series(mmin, mmax)
-        elseif series==:hull
-                return hull_series(mmin,mmax)
-        elseif series==:bulkhead
-                return bulkhead_series(mmin,mmax)
-        elseif series==:full
-                return full_series(mmin,mmax)
-        elseif series==:mn
-                return [(mmin,mmax)]
-        end
-end
-
 function model_id(x)
         try
                 s1,s2 = findall(isequal('-'),x)
@@ -184,55 +97,6 @@ function models(asd::Function, comargs::Vector{Tuple{Int,Int}}, force=false, cac
         end
         bson("$rootdir/comargs.bson",Dict(:cargs=>model_id.(readdir(rootdir))))
         comargs
-end
-
-######################################
-#### Calculating High Symmetry Spectra
-######################################
-
-
-function hs_spectra_v_twist(RN, asd0,series,ksymbols, cachedir=ENV["cachedir"], scriptdir=ENV["scriptdir"])
-    datafile = "$scriptdir/out/$RN/$asd0-$(series[2])-$(series[3]).bson"
-
-    #Check for model information and make it if absent
-    comargs = SolidState.twist_series(series...);
-    SolidState.make_models(asd0,comargs;cachedir=cachedir)
-
-    #Initialize data structures for plots and spectra
-    kenergies = copy(OrderedDict("hi"=>OrderedDict(1.0=>rand(5))))|>empty
-    for k ∈ ksymbols
-        push!(kenergies,k=>(OrderedDict(1.0=>rand(5))|>empty))
-    end
-
-    #Loop over different twisted models
-    for mn ∈ comargs
-        println("Loading $(mn)");flush(stdout)
-        asd = BSON.load("$cachedir/$asd0/asd-$(mn[1])-$(mn[2]).bson")
-        asdg = asd|>SolidState.ASDGeometry
-        kledger  = Dict(ksymbols|>x->x.=>getindex.(Ref(asdg["bz_hs"]),x))
-
-        hd =  data_import("$cachedir/$asd0/hd-$(mn[1])-$(mn[2]).bson")
-        # Looping over different k points
-        for k ∈ ksymbols
-            key = SolidState.cθ(mn...)*180/π
-            println("spectrum calculated at $k");flush(stdout)
-            hd(kledger[k])
-            push!(kenergies[k],key=>eigvals(Hermitian(hd.h_ops.h)))
-        end
-
-    end
-
-
-    bson(datafile,
-        Dict(
-            :spectra  =>kenergies,
-            :asd      =>asd0,
-            :comargs  =>comargs,
-            :ksymbols =>ksymbols
-            )
-        )
-
-    return datafile
 end
 
 ######################################
@@ -280,18 +144,18 @@ end
 
 function path_points(path_list::Vector{Vector{Vector{Float64}}}, N::Int64)::(Tuple{Array{Vector{Float64},2},Array{Array{Int64,1},1},Array{Array{Float64,1},1}})
     paths           = Vector{Vector{Float64}}[];
-    odometers       = Vector{Float64}[];
+    odimeter       = Vector{Float64}[];
     corner_indices  = [zeros(Int64, length(path_list[i])) for i=1:length(path_list)];
     for i ∈ 1:length(path_list)
         positions = path_points(path_list[i], N)
         push!(paths,    positions)
-        push!(odometers, vcat([0.0],cumsum(LinearAlgebra.norm.(diff(positions)))))
+        push!(odimeter, vcat([0.0],cumsum(LinearAlgebra.norm.(diff(positions)))))
         #println(indexin.(hash.(path_list[i]), Ref(hash.(positions))))
         # corner_indices[i] .= findindex.(Ref(positions), path_list[i])
         findcorners!(corner_indices[i], positions, path_list[i])
     end
 
-    hcat(paths...), corner_indices, odometers
+    hcat(paths...), corner_indices, odimeter
 end
 
 function path_points(bz_pt_ledger::Dict{String,Array{Float64,1}}, path_list, N::Int64)::(Tuple{Array{Vector{Float64},2},Array{Array{Int64,1},1},Array{Array{Float64,1},1}})
@@ -302,7 +166,6 @@ function path_points(asd, path_list, N::Int64)#::(Tuple{Array{Vector{Float64},2}
     bz_pt_ledger = SolidState.ASDGeometry(asd)["bz_hs"]
     path_points([get.(Ref(bz_pt_ledger), path_corners, Ref([Inf,Inf])) for path_corners ∈ path_list], N)
 end
-
 
 #Simple Band Structure
 function band_data(asd::Dict{String,Any}, hd::HamiltonianDensity, pathlist=["K1","Γ","M1","K'1"],Npath = 100; kargs...)
@@ -349,7 +212,6 @@ function band_data(asd::Dict{String,Any}, hd::HamiltonianDensity, pathlist=["K1"
             )
 end
 
-
 """
     bands(asd::Symbol, mn::Tuple{Int,Int}, RN, pathlist=["K1","Γ","M1","K'1"], Npath = 300, scriptdir=ENV["scriptdir"], cachedirr=ENV["cachedir"], args...)
 
@@ -372,46 +234,10 @@ function bands(RN, asd, mn::Tuple{Int,Int}, pathlist=["K1","Γ","M1","K'1"], Npa
     "$scriptdir/out/$RN/$asd-$(mn[1])-$(mn[2]).bson"
 end
 
-"""
-    bands(asd::Symbol, mn::Tuple{Int,Int}, RN, pathlist=["K1","Γ","M1","K'1"], Npath = 300, scriptdir=ENV["scriptdir"], cachedirr=ENV["cachedir"], args...)
-
-Calculate the band structure of a model along the high symmetry points listed in
-"""
-function twistedbands(RN, asd, mn::Tuple{Int,Int}, pathlist=["K1","Γ","M1","K'1"], Npath = 300, scriptdir=ENV["scriptdir"], cachedirr=ENV["cachedir"], args...)
-    #Compute Data
-    models(asd,[mn])
-    ASD       = BSON.load(   "$cachedirr/$asd/asd-$(mn[1])-$(mn[2]).bson")
-    hd        = data_import( "$cachedirr/$asd/hd-$(mn[1])-$(mn[2]).bson")
-    dict = band_data(ASD,hd,pathlist,Npath; title = "$(round(180/π*SolidState.cθ(mn...),digits=3))ᵒ")
-
-    #Export Data
-    bson("$(mkpath("$scriptdir/out/$RN/"))/$asd-$(mn[1])-$(mn[2]).bson", deepcopy(dict))
-
-    "$scriptdir/out/$RN/$asd-$(mn[1])-$(mn[2]).bson"
-end
-
-"""
-    bands(asd::Symbol, mn::Tuple{Int,Int}, RN, pathlist=["K1","Γ","M1","K'1"], Npath = 300, scriptdir=ENV["scriptdir"], cachedirr=ENV["cachedir"], args...)
-
-Calculate the band structure of a model along the high symmetry points listed in
-"""
-function shiftedbands(RN, asd, (n1,n2,N)::Tuple{Int,Int,Int}, pathlist=["K1","Γ","M1","K'1"], Npath = 300, scriptdir=ENV["scriptdir"], cachedirr=ENV["cachedir"], args...)
-    #Compute Data
-    models(asd,[mn])
-    ASD       = BSON.load(   "$cachedirr/$asd/asd-$(mn[1])-$(mn[2]).bson")
-    hd        = data_import( "$cachedirr/$asd/hd-$(mn[1])-$(mn[2]).bson")
-    dict = band_data(ASD,hd,pathlist,Npath; title = "$(round(180/π*SolidState.cθ(mn...),digits=3))ᵒ")
-
-    #Export Data
-    bson("$(mkpath("$scriptdir/out/$RN/"))/$asd-$(mn[1])-$(mn[2]).bson", deepcopy(dict))
-
-    "$scriptdir/out/$RN/$asd-$(mn[1])-$(mn[2]).bson"
-end
-
 ######################################
 #### Calculating 1D path sections with full structure data retained
 ######################################
-function hd_section_1d(asd::Dict{String,Any}, hd::HamiltonianDensity, Npath=100, pathlist=["K1","Γ","M1","K'1"]; kargs...)
+function hd_section_1d(asd::Dict{String,Any}, hd::HamiltonianDensity, Npath=100, pathlist=["K1","Γ","M1","K'1"])
     asdg = SolidState.ASDGeometry(asd);
     tbks, corner_indices, odimeter = path_points(asd,[pathlist],Npath)
 
@@ -440,20 +266,16 @@ function hd_section_1d(asd::Dict{String,Any}, hd::HamiltonianDensity, Npath=100,
             label   = "",
             xlims   = (0, 1),
             yrotation=60,
-            yguide  = "eV",
             gridalpha      = .5 ,
             gridlinewidth  = 1,
             gridstyle      = :dashdot,
             xtickfonthalign =:center,
-            xtickfontsize  = 9,
-            yguidefontsize = 10,
             xticks         = (tick_odimeters[1]./max(odimeter[1]...), pathlist),
             minorgrid      = false,
-            margin         = 4Plots.mm,
             apsectratio    = 1/4,
+            xguidefontsize = 16,
             title_pos       = :right,
             titlefontvalign = :bottom,
-            kargs...
         );
 
     Dict(
@@ -473,7 +295,7 @@ function hd_section_1d(RN, asd, mn, Npath = 300, pathlist=["K1","Γ","M1","K'1"]
     #Compute Data
     ASD       = BSON.load(   "$cachedirr/$asd/asd-$(mn[1])-$(mn[2]).bson")
     hd        = data_import( "$cachedirr/$asd/hd-$(mn[1])-$(mn[2]).bson")
-    dict      = hd_section_1d(ASD,hd,Npath,pathlist; title = "$(round(180/π*SolidState.cθ(mn...),digits=3))ᵒ")
+    dict      = hd_section_1d(ASD,hd,Npath,pathlist)
 
     #Export Data
     bson("$(mkpath("$scriptdir/out/$RN/"))/$(hds1d_tag(asd,mn,Npath,pathlist)).bson",
@@ -549,230 +371,35 @@ end
 #### Calculating DataIntegrals
 ######################################
 
+integral_tag(asd,mn,chart_integral_info) = "$asd-$(mn[1])-$(mn[2])-$(hash(chart_integral_info))"
 
-function shg_section(;RN,asd,mn,Nbz)
-    models(asd,[mn])
+function integral(RN, asd, mn, chart_integral_info, pool=default_worker_pool(), cachedir=ENV["cachedir"], scriptdir=ENV["scriptdir"]; force=false)
+    if !isfile("$scriptdir/out/$RN/$(integral_tag(asd,mn,chart_integral_info)).bson")||force
+        models(asd,[mn],force)
+        println("For model $asd $(mn[1])-$(mn[2])");flush(stdout)
+        println("Calculating Integral $chart_integral_info");flush(stdout)
+        di0 = DataIntegral(asd, mn, chart_integral_info[1:end-1]...)
 
-    asdmn = BSON.load("$(ENV["scriptdir"])/.cache/$asd/asd-$(mn[1])-$(mn[2]).bson")
-    asdg = (asdmn|>SolidState.ASDGeometry)
+        di = di0(chart_integral_info[end], pool)
 
-    hd = data_import("$(ENV["scriptdir"])/.cache/$asd/hd-$(mn[1])-$(mn[2]).bson")
-
-    K = KinematicDensity(hd,[(:T,0.0,0.0,1),(:μ,0.0,0.0,1),(:δ,0.02,0.02,1)])
-
-    dim = size(K.hd.h_ops.h,1)
-    vband = dim/2|>Int
-    cband = vband+1
-
-    patch_rng = range(-1.25*asdg["Kmag"],1.25*asdg["Kmag"], length=Nbz)
-
-    data = Dict(
-        :patch_rng => patch_rng,
-        :asdg => asdg,
-        :asd => asd,
-        :mn  => mn,
-        :T1d  => zeros(Complex{Float64},(Nbz,Nbz)),
-        :T2d  => zeros(Complex{Float64},(Nbz,Nbz)),
-    );
-
-    for (i,kx) in enumerate(patch_rng)
-        for (j,ky) in enumerate(patch_rng)
-            ij = i + (j-1)*Nbz
-            K([patch_rng[i],patch_rng[j]])
-            data[:T1d][ij] = -im/(2.0*K.k_m.dω[cband,vband]^2)*(4*K.k_m.re[2][vband,cband]*(K.k_m.re[2][cband,vband]*K.k_m.Δ[2][cband,vband])+im*(K.hd.h_ops.a[2,2][cband,vband]*K.k_m.re[2][vband,cband]))
-            data[:T2d][ij] = K.k_m.re[2][vband,cband]
-        end
-    end
-
-    datafile = "$(mkpath("$(ENV["scriptdir"])/out/$RN"))/$asd-$(mn[1])-$(mn[2])-$Nbz.bson"
-    bson(datafile,data)
-
-    datafile
-end
-
-function shg_section(RN,asd,mn,Nbz)
-    shg_section(;
-        RN=RN,
-        asd=asd,
-        mn=mn,
-        Nbz,
-    )
-end
-
-
-######################################
-#### Calculating DataIntegrals
-######################################
-function shg_section_direct(asd,mn,Nbz)
-    SolidState.Main.models(asd,[mn])
-
-    asdmn = BSON.load("$(ENV["scriptdir"])/.cache/$asd/asd-$(mn[1])-$(mn[2]).bson")
-    asdg = (asdmn|>SolidState.ASDGeometry)
-
-    hd = data_import("$(ENV["scriptdir"])/.cache/$asd/hd-$(mn[1])-$(mn[2]).bson")
-    K = KinematicDensity(hd,[(:T,0.0,0.0,1),(:μ,0.0,0.0,1),(:δ,0.02,0.02,1)])
-
-    dim = size(K.hd.h_ops.h,1)
-    vband = dim/2|>Int
-    cband = vband+1
-
-    patch_rng = range(-1.25*asdg["Kmag"],1.25*asdg["Kmag"], length=Nbz)
-
-    data = Dict(
-        :patch_rng => patch_rng,
-        :asdg => asdg,
-        :asd => asd,
-        :mn  => mn,
-        :T1d  => zeros(Complex{Float64},(Nbz,Nbz)),
-        :T2d  => zeros(Complex{Float64},(Nbz,Nbz)),
-    );
-
-    for (i,kx) in enumerate(patch_rng)
-        for (j,ky) in enumerate(patch_rng)
-            ij = i + (j-1)*Nbz
-            K([patch_rng[i],patch_rng[j]])
-            data[:T1d][ij] = -im/(2.0*K.k_m.dω[cband,vband]^2)*(4*K.k_m.re[2][vband,cband]*(K.k_m.re[2][cband,vband]*K.k_m.Δ[2][cband,vband])+im*(K.hd.h_ops.a[2,2][cband,vband]*K.k_m.re[2][vband,cband]))
-            data[:T2d][ij] = 2*(K.k_m.re[2][cband,vband]/K.k_m.dω[cband,vband]^2)*(4*K.k_m.re[2][vband,cband]*K.k_m.Δ[2][vband,cband]+im*K.hd.h_ops.a[2,2][cband,vband])
-        end
-    end
-
-    datafile = "$(mkpath("$(ENV["scriptdir"])/out/$RN"))/$asd-$(mn[1])-$(mn[2])-$Nbz.bson"
-    bson(datafile,data)
-
-    datafile
-end
-
-function shg_section_direct(RN,asd,mn,Nbz)
-    shg_section_direct(;
-        RN=RN,
-        asd=asd,
-        mn=mn,
-        Nbz,
-    )
-end
-
-######################################
-#### Calculating Shifted SHG
-######################################
-
-function shifted_response(RN,asd,dtype,indices,priors,base,Nevals,rngs)
-
-    bdom    = getindex.(SolidState.range_scope(base),1)
-    asd0 = asd()
-    asdg = asd0|>SolidState.ASDGeometry
-
-    maxshift = asdg["Lmag"]*sqrt(3)
-    lc_z = asdg["xtal"][1][3,3]
-    configurations = [ [ -0.5*[n1,n2,n3], 0.5*[n1,n2,n3]] for n1 in (maxshift.*rngs[1]), n2 in (maxshift.*rngs[2]), n3 in (lc_z.*rngs[3])][:]
-
-    data = Array{Vector{ComplexF64}}(undef,length(configurations))
-    for (i,shifts) in enumerate(configurations)
-        shifted_asd = SolidState.LayerShiftASD(deepcopy(asd0),shifts)
-        hd = TightBindingDensity(shifted_asd)
-        dm = DataMap(dtype,shifted_asd,hd,indices,priors,base)
-        di = DataIntegral(dm)
-        di(Nevals:Nevals)
-
-        data[i] = di.data[1][:]
-    end
-
-    bson("$(mkpath("$(ENV["scriptdir"])/out/$RN"))/shifted-$asd-$Nevals"*"$(string(("-".*string.(rngs))...)).bson",
-        Dict(
+        bson("$(mkpath("$scriptdir/out/$RN"))/$asd-$(mn[1])-$(mn[2])-$(hash(chart_integral_info)).bson", Dict(
+            :chart_integral_info => chart_integral_info,
+            :mn => mn,
             :asd => asd,
-            :Nevals => Nevals,
-            :rngs => rngs,
-            :bdom => bdom,
-            :configurations => configurations,
-            :data => data,
-            :ucvol => det(asd0["blv"])
-        )
-    )
-end
-
-######################################
-#### Shifted Sections
-######################################
-
-function shifted_response_section(RN,asd,dtype,indices,priors,base,Nevals,steps)
-    bdom    = getindex.(SolidState.range_scope(base),1)
-
-    asd0 = SolidState.LayerShiftASD(asd(),[zeros(3),[n1/N*asdg["Lmag"]*sqrt(3),n2/N*asdg["Lmag"]*sqrt(3),0.0]])
-    asdg = asd0|>SolidState.ASDGeometry
-
-    hd = TightBindingDensity(asd0)
-    K = KinematicDensity(hd,[(:T,0.0,0.0,1),(:μ,0.0,0.0,1),(:δ,0.02,0.02,1)])
-
-    dim = size(K.hd.h_ops.h,1)
-    vband = dim/2|>Int
-    cband = vband+1
-
-    patch_rng = range(-1.25*asdg["Kmag"],1.25*asdg["Kmag"], length=Nbz)
-
-    data = Dict(
-        :patch_rng => patch_rng,
-        :asdg => asdg,
-        :asd => asd,
-        :mn  => mn,
-        :Td  => zeros(Complex{Float64},(Nbz,Nbz)),
-        :Tv  => zeros(Complex{Float64},(Nbz,Nbz)),
-    );
-
-    for (i,kx) in enumerate(patch_rng)
-        for (j,ky) in enumerate(patch_rng)
-            ij = i + (j-1)*Nbz
-            K([patch_rng[i],patch_rng[j]])
-            for m in 1:dim
-                for n in 1:dim
-                    nm = n + (m-1)*dim
-                    mn = m + (n-1)*dim
-                    data[:Td][ij] += Complex(0,-3.0)*K.k_m.df[1][nm]/(K.k_m.dω[nm]^3)*K.k_m.re[2][nm]*(K.k_m.re[2][mn]*K.k_m.Δ[3][mn]+Complex(0.0,K.h_ops.a[2,2][mn]))
-                    for l in 1:dim
-                        ln = l + (n-1)*dim
-                        ml = m + (l-1)*dim
-                        data[:Tv][ij] += K.k_m[2][nm]*(K.h_ops.E.values[l]*(1.0/K.k_m.dω[ln]+1.0/K.k_m.dω[ml]+1.0/K.k_m.dω[nm])+0.5)*(K.k_m.re[2][ml]*K.k_m.re[2][ln])
-                    end
-                end
-            end
-        end
+            :dtype => chart_integral_info[1],
+            :scriptdir => scriptdir,
+            :cachedir => cachedir,
+            :plotdir => mkpath("$scriptdir/out/$RN"),
+            :handle => "$asd-$(mn[1])-$(mn[2])-$(hash(chart_integral_info))",
+            :data => di.data,
+            :err  => di.err,
+            :evals => di.evals,
+            :base => getindex.(di.dm.chart.base,1),
+            :npool => length(pool),
+        ))
     end
 
-    datafile = "$(mkpath("$(ENV["scriptdir"])/out/$RN"))/shifted-shg-section-$asd-$(mnN[1])-$(mnN[2])-$(mnN[3])-$Nbz.bson"
-    bson(datafile,data)
-
-end
-
-######################################
-#### Calculating DataIntegrals
-######################################
-
-function integral(RN, asd, mn, dtype::Type{T} where T <: SolidState.DataChart, indices, priors, base, Neval, pool=default_worker_pool(), cachedir=ENV["cachedir"], scriptdir=ENV["scriptdir"]; force=false)
-
-    println("Calculating Integral for $asd $(mn[1])-$(mn[2]) with $Neval points");flush(stdout)
-    models(asd,[mn],force)
-    di0 = DataIntegral(asd, mn, dtype, indices, priors, base)
-
-    di = di0(Neval, pool)
-
-    bson("$(mkpath("$scriptdir/out/$RN"))/$asd-$(mn[1])-$(mn[2])-$dtype-$Neval.bson", Dict(
-        :mn => mn,
-        :asd => asd,
-        :dtype => dtype,
-        :indicess => indices,
-        :priors =>priors,
-        :base => base,
-        :Neval => Neval,
-        :scriptdir => scriptdir,
-        :cachedir => cachedir,
-        :plotdir => mkpath("$scriptdir/out/$RN"),
-        :handle => "$asd-$(mn[1])-$(mn[2])-$dtype-$Neval",
-        :data => di.data,
-        :err  => di.err,
-        :evals => di.evals,
-        :base => getindex.(getfield(di.dm.chart,1).base,1),
-        :npool => length(pool)
-    ))
-
-    "$scriptdir/out/$RN/$asd-$(mn[1])-$(mn[2])-$dtype-$Neval.bson"
+    "$asd-$(mn[1])-$(mn[2])-$(hash(chart_integral_info))"
 end
 
 ######################################
@@ -830,7 +457,7 @@ function mem_scaling(RN, asd, comargs::Tuple{Int64,Int64}, datatype, indices, pr
                 :indices => indices,
                 :priors  => priors,
                 :base => base,
-                :comargs => models(asd,twist_series(:bulkhead, comargs...)),
+                :comargs => models(asd,SolidState.(:bulkhead, comargs...)),
                 :cachedir => "$(ENV["cachedir"])",
                 :datadir => "$(ENV["scriptdir"])/out/$RN"|>mkpath,
                 :plotdir => "$(ENV["scriptdir"])/plot/$RN"|>mkpath
@@ -845,7 +472,7 @@ function core_scaling(RN, asd, comargs, datatype, indices, priors, base, Neval)
             :indices => indices,
             :priors  => priors,
             :base => base,
-            :comargs => models(asd,twist_series(:bulkhead, comargs...)),
+            :comargs => models(asd,SolidState.(:bulkhead, comargs...)),
             :cachedir => "$(ENV["cachedir"])",
             :datadir => "$(ENV["scriptdir"])/out/$RN"|>mkpath,
             :plotdir => "$(ENV["scriptdir"])/plot/$RN"|>mkpath,
@@ -863,7 +490,7 @@ function integral_convergence(RN, asd, comargs, datatype, f, sindices, priors, b
             :indices => indices,
             :priors  => priors,
             :base => base,
-            :comargs => models(asd,twist_series(:bulkhead, comargs...)),
+            :comargs => models(asd,SolidState.(:bulkhead, comargs...)),
             :cachedir => "$(ENV["cachedir"])",
             :datadir => "$(ENV["scriptdir"])/out/$RN"|>mkpath,
             :plotdir => "$(ENV["scriptdir"])/plot/$RN"|>mkpath,
@@ -874,9 +501,6 @@ function integral_convergence(RN, asd, comargs, datatype, f, sindices, priors, b
 
     SolidState.Scaling.julia_worker_test(;args...)
 end
-
-
-
 # function blas_julia_thread_tradeoff(; asd, datatype, indices, priors, base, comargs, cachedir, datadir, plotdir, pool = default_worker_pool(), Neval, blas_thread_max=length(pool), kargs...)
 # function blas_thread_map_test(; asd, datatype, indices, priors, base, comargs, cachedirr, scriptdir, blas_thread_max, kargs...)
 # function blas_thread_integral_test(asd, datatype, indices, priors, base, args...; comargs, scriptdir, blas_thread_max, Neval, pool, kargs...)
@@ -885,46 +509,38 @@ end
 ###### Extraction Methods
 ###############################################################
 
-function book_save(plotbook, plotdir)
-    for key ∈ keys(plotbook)
-        Plots.pdf(getindex(plotbook,key), "$plotdir/$key")
-    end
-end
-
 function load(RN,name)
         BSON.load("$(ENV["scriptdir"])/out/$RN/$name.bson")
 end
 
-function load(description::AbstractDict)
-    dict = Dict()
-    map(keys(description),values(description)) do name,RN
-        push!(dict,name=>load(RN,name))
-    end
-    dict
-end
-
-function extract(RN,name,plotfunction,args...)
+function extract(RN,name,plotfunction,args...;)
     datafile = "$(ENV["scriptdir"])/out/$RN/$name.bson"
     plotdir = "$(ENV["scriptdir"])/plot/$RN"|>mkpath
     plotfunction(args...; BSON.load(datafile)..., plotdir=plotdir)
 end
 
-
-function series_extract(RN,tags,plotargs::Tuple)
-    map(enumerate(tags)) do (i,tag)
-        SolidState.Main.extract(RN,tag,plotargs)
+function extract(;RN,mainf,extractf,asd,mn,main_info,force=false)
+    if isfile("$(ENV["scriptdir"])/out/$RN/$asd-$(mn[1])-$(mn[2])-$(hash(main_info))")&&(!force)
+        # SolidState.Main.load(RN,"$asd-$(mn[1])-$(mn[2])-$(hash(integral_info))")
+        @assert !force
+        SolidState.Main.extract(RN,"$asd-$(mn[1])-$(mn[2])-$(hash(main_info))",extractf)
+    else
+        mainf(RN,asd,mn,main_info)
+        # SolidState.Main.load(RN,"$asd-$(mn[1])-$(mn[2])-$(hash(integral_info))")
+        SolidState.Main.extract(RN,"$asd-$(mn[1])-$(mn[2])-$(hash(main_info))",extractf)
     end
 end
 
-function series_extract(RN,tags,plotargs::AbstractVector)
-    map(enumerate(tags)) do (i,tag)
-        SolidState.Main.extract(RN,tag,plotargs[i])
-    end
-end
+function extract(extract_info;RN,mainf,extractf,asd,mn,main_info,force=false)
+    if isfile("$(ENV["scriptdir"])/out/$RN/$asd-$(mn[1])-$(mn[2])-$(hash(main_info))")&&(!force)
 
-function series_extract(RN,plottags::AbstractDict)
-    map(collect(keys(plottags)),collect(values(plottags))) do (tag,plotarg)
-        SolidState.Main.extract(RN,tag,plotarg...)
+        # SolidState.Main.load(RN,"$asd-$(mn[1])-$(mn[2])-$(hash(integral_info))")
+        @assert !force
+        SolidState.Main.extract(RN,"$asd-$(mn[1])-$(mn[2])-$(hash(main_info))",extractf,extract_info...)
+    else
+        mainf(RN,asd,mn,main_info)
+        # SolidState.Main.load(RN,"$asd-$(mn[1])-$(mn[2])-$(hash(integral_info))")
+        SolidState.Main.extract(RN,"$asd-$(mn[1])-$(mn[2])-$(hash(main_info))",extractf,extract_info...)
     end
 end
 
