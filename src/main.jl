@@ -373,7 +373,7 @@ end
 
 integral_tag(asd,mn,chart_integral_info) = "$asd-$(mn[1])-$(mn[2])-$(hash(chart_integral_info))"
 
-function integral(RN, asd, mn, chart_integral_info, pool=default_worker_pool(), cachedir=ENV["cachedir"], scriptdir=ENV["scriptdir"]; force=false)
+function integral(RN::String, asd, mn::Tuple, chart_integral_info::Tuple, pool=default_worker_pool(), cachedir=ENV["cachedir"], scriptdir=ENV["scriptdir"]; force=false)
     if !isfile("$scriptdir/out/$RN/$(integral_tag(asd,mn,chart_integral_info)).bson")||force
         models(asd,[mn],force)
         println("For model $asd $(mn[1])-$(mn[2])");flush(stdout)

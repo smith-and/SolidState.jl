@@ -298,32 +298,9 @@ function E_Scales(a, c, δBB, δNN, δNB, ϵBB, ϵNN, vppσ, vppπBB, vppπNN, v
     )
 end
 
-#=
-function WHA()
+function wide_gap_wha()
     a = 0.2512
-    δBB = 0.022
-    δNN = 0.022
-    δNB = 0.022
-    vppπBB = 0.7
-    vppπNN = 0.15
-    vppπNB = 2.3
-    vppσ = 0.2
-    ϵBB = 4.0
-    ϵNN = -4.0
-    c = 0.333
-    a = 0.2512
-    Dict(
-        "lbase" => 10,
-        "cutoff" => 4.001 * a / sqrt(3),
-        "regulator" => "exp",
-        "scales" => E_Scales(a, c, δBB, δNN, δNB, ϵBB, ϵNN, vppσ, vppπBB, vppπNN, vppπNB),
-    )
-end
-=#
-
-function WHA()
-    a = 0.2512
-    c = 0.333
+    c = 0.334
     δBB = 0.022
     δNN = 0.022
     δNB = 0.0475
@@ -331,8 +308,28 @@ function WHA()
     vppπNN = 0.15
     vppπNB = 2.3
     vppσ = 0.2
-    ϵBB = 4.0
-    ϵNN = -4.0
+    ϵBB = 3.125
+    ϵNN = -3.125
+    Dict(
+        "lbase" => 10,
+        "cutoff" => 20 * a / sqrt(3),
+        "regulator" => "exp",
+        "scales" => E_Scales(a, c, δBB, δNN, δNB, ϵBB, ϵNN, vppσ, vppπBB, vppπNN, vppπNB),
+    )
+end
+
+function small_gap_wha()
+    a = 0.2512
+    c = 0.334
+    δBB = 0.022
+    δNN = 0.022
+    δNB = 0.0475
+    vppπBB = 0.7
+    vppπNN = 0.15
+    vppπNB = 2.3
+    vppσ = 0.2
+    ϵBB = 0.10
+    ϵNN = -0.10
     Dict(
         "lbase" => 10,
         "cutoff" => 20 * a / sqrt(3),
@@ -344,7 +341,7 @@ end
 function random_onsite()
     α = 0.1
     a = 0.2512
-    c = 0.333
+    c = 0.334
     δBB = 0.022
     δNN = 0.022
     δNB = 0.0475
@@ -365,7 +362,7 @@ end
 function random_hopping()
     α = 0.1
     a = 0.2512
-    c = 0.333
+    c = 0.334
     δBB = 0.022
     δNN = 0.022
     δNB = 0.0475
@@ -383,10 +380,11 @@ function random_hopping()
     )
 end
 
+
 export ASD1
 function ASD1()
     a = 0.2512
-    c = 0.333
+    c = 0.334
     asd = Dict(
         "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 c],
         "sk" => Dict(
@@ -404,13 +402,13 @@ function ASD1()
         ],
         "filling" => 0.5,
     )
-    merge(asd, WHA())
+    merge(asd, wide_gap_wha())
 end
 
 export ASD2
 function ASD2()
     a = 0.2512
-    c = 0.333
+    c = 0.334
     asd = Dict(
         "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 2*c],
         "sk" => Dict("Atom" => 1, "Layer" => 2,"Pos" => 3,"Spin" => 4,"Orbital" => 5,"Glyph" => 6,"Color" => 7),
@@ -422,13 +420,32 @@ function ASD2()
         ],
         "filling" => 0.5,
     )
-    merge(asd, WHA())
+    merge(asd, wide_gap_wha())
 end
+
+export SGASD2
+function SGASD2()
+    a = 0.2512
+    c = 0.334
+    asd = Dict(
+        "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 2*c],
+        "sk" => Dict("Atom" => 1, "Layer" => 2,"Pos" => 3,"Spin" => 4,"Orbital" => 5,"Glyph" => 6,"Color" => 7),
+        "sites" => [
+            ("B", 1, [0.0, a / sqrt(3), -c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 1, [0.0, -a / sqrt(3), -c / 2],(0 // 1, [1]), (1, [2]), :circle, :orange),
+            ("B", 2, [0.0, a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 2, [0.0, -a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :orange),
+        ],
+        "filling" => 0.5,
+    )
+    merge(asd, small_gap_wha())
+end
+
 
 export ASD2RH
 function ASD2RH()
     a = 0.2512
-    c = 0.333
+    c = 0.334
     asd = Dict(
         "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 2*c],
         "sk" => Dict("Atom" => 1, "Layer" => 2,"Pos" => 3,"Spin" => 4,"Orbital" => 5,"Glyph" => 6,"Color" => 7),
@@ -443,29 +460,10 @@ function ASD2RH()
     merge(asd, random_hopping())
 end
 
-
-export ASD22
-function ASD22()
-    a = 0.2512
-    c = 0.333
-    asd = Dict(
-        "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 2*c],
-        "sk" => Dict("Atom" => 1, "Layer" => 2,"Pos" => 3,"Spin" => 4,"Orbital" => 5,"Glyph" => 6,"Color" => 7),
-        "sites" => [
-            ("B", 1, [0.0, a / sqrt(3), -c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
-            ("N", 1, [0.0, -a / sqrt(3), -c / 2],(0 // 1, [1]), (1, [2]), :circle, :orange),
-            ("B", 2, [0.0, a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
-            ("N", 2, [0.0, -a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :orange),
-        ],
-        "filling" => 0.5,
-    )
-    merge(asd, WHA())
-end
-
 export ASD2CS
 function ASD2CS()
     a = 0.2512
-    c = 0.333
+    c = 0.334
     asd = Dict(
         "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 2*c],
         "sk" => Dict("Atom" => 1, "Layer" => 2,"Pos" => 3,"Spin" => 4,"Orbital" => 5,"Glyph" => 6,"Color" => 7),
@@ -477,13 +475,13 @@ function ASD2CS()
         ],
         "filling" => 0.5,
     )
-    merge(asd, WHA())
+    merge(asd, wide_gap_wha())
 end
 
-export ASD2B
-function ASD2B()
+export ASD2AB
+function ASD2AB()
     a = 0.2512
-    c = 0.333
+    c = 0.334
     asd = Dict(
         "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 2*c],
         "sk" => Dict("Atom" => 1, "Layer" => 2,"Pos" => 3,"Spin" => 4,"Orbital" => 5,"Glyph" => 6,"Color" => 7),
@@ -495,13 +493,32 @@ function ASD2B()
         ],
         "filling" => 0.5,
     )
-    merge(asd, WHA())
+    merge(asd, wide_gap_wha())
+end
+
+
+export SGASD2AB
+function SGASD2AB()
+    a = 0.2512
+    c = 0.334
+    asd = Dict(
+        "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 2*c],
+        "sk" => Dict("Atom" => 1, "Layer" => 2,"Pos" => 3,"Spin" => 4,"Orbital" => 5,"Glyph" => 6,"Color" => 7),
+        "sites" => [
+            ("B", 1, [0.0, a / sqrt(3), -c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 1, [0.0, -a / sqrt(3), -c / 2],(0 // 1, [1]), (1, [2]), :circle, :orange),
+            ("B", 2, [0.0, 2a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 2, [0.0, 0, c / 2], (0 // 1, [1]), (1, [2]), :circle, :orange),
+        ],
+        "filling" => 0.5,
+    )
+    merge(asd, small_gap_wha())
 end
 
 export ASD2p3
 function ASD2p3()
     a = 0.2512
-    c = 0.333
+    c = 0.334
     asd = Dict(
         "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 c],
         "sk" => Dict(
@@ -519,36 +536,78 @@ function ASD2p3()
         ],
         "filling" => 0.5,
     )
-    merge(asd, WHA())
+    merge(asd, wide_gap_wha())
 end
 
 export ASD3
 function ASD3()
     a = 0.2512
-    c = 0.333
+    c = 0.334
     asd = Dict(
-        "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 2*c],
+        "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 3*c],
         "sk" => Dict("Atom" => 1, "Layer" => 2,"Pos" => 3,"Spin" => 4,"Orbital" => 5,"Glyph" => 6,"Color" => 7),
         "sites" => [
             ("B", 1, [0.0, a / sqrt(3),  -c], (0 // 1, [1]), (1, [2]), :circle, :blue),
             ("N", 1, [0.0, -a / sqrt(3), -c], (0 // 1, [1]), (1, [2]), :circle, :orange),
-            ("B", 2, [0.0, -a / sqrt(3),  0],  (0 // 1, [1]), (1, [2]), :circle, :blue),
-            ("N", 2, [0.0, a / sqrt(3),   0],  (0 // 1, [1]), (1, [2]), :circle, :orange),
-            ("B", 3, [0.0, a / sqrt(3),  c],  (0 // 1, [1]), (1, [2]), :circle, :blue),
-            ("N", 3, [0.0, -a / sqrt(3), c],  (0 // 1, [1]), (1, [2]), :circle, :orange),
+            ("B", 1, [0.0, -a / sqrt(3),  0],  (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 1, [0.0, a / sqrt(3),   0],  (0 // 1, [1]), (1, [2]), :circle, :orange),
+            ("B", 2, [0.0, a / sqrt(3),  c],  (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 2, [0.0, -a / sqrt(3), c],  (0 // 1, [1]), (1, [2]), :circle, :orange),
 
         ],
         "filling" => 0.5,
     )
-    merge(asd, WHA())
+    merge(asd, wide_gap_wha())
+end
+
+export ASD3
+function ASD3()
+    a = 0.2512
+    c = 0.334
+    asd = Dict(
+        "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 3*c],
+        "sk" => Dict("Atom" => 1, "Layer" => 2,"Pos" => 3,"Spin" => 4,"Orbital" => 5,"Glyph" => 6,"Color" => 7),
+        "sites" => [
+            ("B", 1, [0.0, a / sqrt(3),  -c], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 1, [0.0, -a / sqrt(3), -c], (0 // 1, [1]), (1, [2]), :circle, :orange),
+            ("B", 1, [0.0, -a / sqrt(3),  0],  (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 1, [0.0, a / sqrt(3),   0],  (0 // 1, [1]), (1, [2]), :circle, :orange),
+            ("B", 2, [0.0, a / sqrt(3),  c],  (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 2, [0.0, -a / sqrt(3), c],  (0 // 1, [1]), (1, [2]), :circle, :orange),
+
+        ],
+        "filling" => 0.5,
+    )
+    merge(asd, wide_gap_wha())
+end
+
+export ASD3AB
+function ASD3AB()
+    a = 0.2512
+    c = 0.334
+    asd = Dict(
+        "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 3*c],
+        "sk" => Dict("Atom" => 1, "Layer" => 2,"Pos" => 3,"Spin" => 4,"Orbital" => 5,"Glyph" => 6,"Color" => 7),
+        "sites" => [
+            ("B", 1, [0.0, a / sqrt(3),  -c], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 1, [0.0, -a / sqrt(3), -c], (0 // 1, [1]), (1, [2]), :circle, :orange),
+            ("B", 1, [0.0, -a / sqrt(3),  0],  (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 1, [0.0, a / sqrt(3),   0],  (0 // 1, [1]), (1, [2]), :circle, :orange),
+            ("B", 2, [0.0, 2a / sqrt(3),  c],  (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 2, [0.0, 0, c],  (0 // 1, [1]), (1, [2]), :circle, :orange),
+
+        ],
+        "filling" => 0.5,
+    )
+    merge(asd, wide_gap_wha())
 end
 
 export ASD3RO
 function ASD3RO()
     a = 0.2512
-    c = 0.333
+    c = 0.334
     asd = Dict(
-        "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 2*c],
+        "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 3*c],
         "sk" => Dict("Atom" => 1, "Layer" => 2,"Pos" => 3,"Spin" => 4,"Orbital" => 5,"Glyph" => 6,"Color" => 7),
         "sites" => [
             ("B", 1, [0.0, a / sqrt(3),  -c], (0 // 1, [1]), (1, [2]), :circle, :blue),
@@ -567,9 +626,9 @@ end
 export ASD3RH
 function ASD3RH()
     a = 0.2512
-    c = 0.333
+    c = 0.334
     asd = Dict(
-        "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 2*c],
+        "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 3*c],
         "sk" => Dict("Atom" => 1, "Layer" => 2,"Pos" => 3,"Spin" => 4,"Orbital" => 5,"Glyph" => 6,"Color" => 7),
         "sites" => [
             ("B", 1, [0.0, a / sqrt(3),  -c], (0 // 1, [1]), (1, [2]), :circle, :blue),
@@ -588,7 +647,7 @@ end
 export ASD4
 function ASD4()
     a = 0.2512
-    c = 0.333
+    c = 0.334
     asd = Dict(
         "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 4*c],
         "sk" => Dict(
@@ -612,13 +671,13 @@ function ASD4()
         ],
         "filling" => 0.5,
     )
-    merge(asd, WHA())
+    merge(asd, wide_gap_wha())
 end
 
-export ASD4B
-function ASD4B()
+export ASD4AB
+function ASD4AB()
     a = 0.2512
-    c = 0.333
+    c = 0.334
     asd = Dict(
         "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 4*c],
         "sk" => Dict(
@@ -642,45 +701,13 @@ function ASD4B()
         ],
         "filling" => 0.5,
     )
-    merge(asd, WHA())
+    merge(asd, wide_gap_wha())
 end
-
-
-export ASD42
-function ASD42()
-    a = 0.2512
-    c = 0.333
-    asd = Dict(
-        "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 4*c],
-        "sk" => Dict(
-            "Atom" => 1,
-            "Layer" => 2,
-            "Pos" => 3,
-            "Spin" => 4,
-            "Orbital" => 5,
-            "Glyph" => 6,
-            "Color" => 7,
-        ),
-        "sites" => [
-            ("B", 1, [0.0, -a / sqrt(3), -3c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
-            ("N", 1, [0.0, a / sqrt(3), -3c / 2],  (0 // 1, [1]), (1, [2]), :circle, :orange),
-            ("B", 1, [0.0, a / sqrt(3), -c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
-            ("N", 1, [0.0, -a / sqrt(3), -c / 2], (0 // 1, [1]), (1, [2]), :circle, :orange),
-            ("B", 2, [0.0, a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
-            ("N", 2, [0.0, -a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :orange),
-            ("B", 2, [0.0, -a / sqrt(3), 3c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
-            ("N", 2, [0.0, a / sqrt(3), 3c / 2], (0 // 1, [1]), (1, [2]), :circle, :orange),
-        ],
-        "filling" => 0.5,
-    )
-    merge(asd, WHA2())
-end
-
 
 export ASD4CS
 function ASD4CS()
     a = 0.2512
-    c = 0.333
+    c = 0.334
     asd = Dict(
         "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 4*c],
         "sk" => Dict(
@@ -704,106 +731,9 @@ function ASD4CS()
         ],
         "filling" => 0.5,
     )
-    merge(asd, WHA())
+    merge(asd, wide_gap_wha())
 end
 
-##########################################
-#### Small Gap ASD Systems
-##########################################
-
-
-function SGWHA()
-    a = 0.2512
-    c = 0.333
-    δBB = 0.022
-    δNN = 0.022
-    δNB = 0.0475
-    vppπBB = 0.7
-    vppπNN = 0.15
-    vppπNB = 2.3
-    vppσ = 0.2
-    ϵBB = 3.125
-    ϵNN = -3.125
-    Dict(
-        "lbase" => 10,
-        "cutoff" => 20 * a / sqrt(3),
-        "regulator" => "exp",
-        "scales" => E_Scales(a, c, δBB, δNN, δNB, ϵBB, ϵNN, vppσ, vppπBB, vppπNN, vppπNB),
-    )
-end
-
-export SGASD1
-function SGASD1()
-    a = 0.2512
-    c = 0.333
-    asd = Dict(
-        "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 c],
-        "sk" => Dict(
-            "Atom" => 1,
-            "Layer" => 2,
-            "Pos" => 3,
-            "Spin" => 4,
-            "Orbital" => 5,
-            "Glyph" => 6,
-            "Color" => 7,
-        ),
-        "sites" => [
-            ("B", 1, [0.0, a / sqrt(3), -c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
-            ("N", 1, [0.0, -a / sqrt(3), -c / 2], (0 // 1, [1]), (1, [2]), :circle, :orange,),
-        ],
-        "filling" => 0.5,
-    )
-    merge(asd, SGWHA())
-end
-
-export SGASD2
-function SGASD2()
-    a = 0.2512
-    c = 0.333
-    asd = Dict(
-        "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 2*c],
-        "sk" => Dict("Atom" => 1, "Layer" => 2,"Pos" => 3,"Spin" => 4,"Orbital" => 5,"Glyph" => 6,"Color" => 7),
-        "sites" => [
-            ("B", 1, [0.0, a / sqrt(3), -c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
-            ("N", 1, [0.0, -a / sqrt(3), -c / 2],(0 // 1, [1]), (1, [2]), :circle, :orange),
-            ("B", 2, [0.0, a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
-            ("N", 2, [0.0, -a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :orange),
-        ],
-        "filling" => 0.5,
-    )
-    merge(asd, SGWHA())
-end
-
-
-export SGASD4
-function SGASD4()
-    a = 0.2512
-    c = 0.333
-    asd = Dict(
-        "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 4*c],
-        "sk" => Dict(
-            "Atom" => 1,
-            "Layer" => 2,
-            "Pos" => 3,
-            "Spin" => 4,
-            "Orbital" => 5,
-            "Glyph" => 6,
-            "Color" => 7,
-        ),
-        "sites" => [
-            ("B", 1, [0.0, -a / sqrt(3), -3c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
-            ("N", 1, [0.0, a / sqrt(3), -3c / 2],  (0 // 1, [1]), (1, [2]), :circle, :orange),
-            ("B", 1, [0.0, a / sqrt(3), -c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
-            ("N", 1, [0.0, -a / sqrt(3), -c / 2], (0 // 1, [1]), (1, [2]), :circle, :orange),
-            ("B", 2, [0.0, a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
-            ("N", 2, [0.0, -a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :orange),
-            ("B", 2, [0.0, -a / sqrt(3), 3c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
-            ("N", 2, [0.0, a / sqrt(3), 3c / 2], (0 // 1, [1]), (1, [2]), :circle, :orange),
-        ],
-        "filling" => 0.5,
-    )
-    merge(asd, SGWHA())
-end
 
 ##########################################
 #### Graphene Systems
