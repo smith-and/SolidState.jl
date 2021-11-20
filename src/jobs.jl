@@ -125,7 +125,7 @@ end
 
 export qcheck
 function qcheck()
-    run(`squeue -u $(ENV["USER"])`)
+    Base.run(`squeue -u $(ENV["USER"])`)
 end
 
 ########################################################################################
