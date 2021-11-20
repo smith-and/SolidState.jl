@@ -123,7 +123,8 @@ function models(f,jit,ps,asds,(idxS,idxL),ncpus,pray)
 
 end
 
-export qcheck()
+export qcheck
+function qcheck()
     run(`squeue -u \$USER`)
 end
 
