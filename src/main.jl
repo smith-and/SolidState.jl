@@ -96,8 +96,7 @@ function models(asd::Function, comargs::Vector{Tuple{Int,Int}}, force=false, cac
                         println("$mn already made");flush(stdout)
                 end
         end
-        bson("$rootdir/comargs.bson",Dict(:cargs=>model_id.(readdir(rootdir))))
-        comargs
+        nothing
 end
 
 ######################################
