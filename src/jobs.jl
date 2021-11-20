@@ -9,42 +9,42 @@ const JPROJECT="--project=$(ENV["HOME"])/.julia/environments/v1.6/Project.toml"
 function julia_call(jit,big,job,JID,scriptdir=ENV["scriptdir"])
     if jit
         if big===true
-            "      $JULIA_CALL $JPROJECT $MACHINEFILE $scriptdir/bin/$job/run-$JID/job.jl"
+            "      $JULIA_CALL $JPROJECT $MACHINEFILE $scriptdir/bin/$job/run-$JID/$job-$JID.jl"
         else
-            "      $JULIA_CALL $JPROJECT -p $big $scriptdir/bin/$job/run-$JID/job.jl"
+            "      $JULIA_CALL $JPROJECT -p $big $scriptdir/bin/$job/run-$JID/$job-$JID.jl"
         end
     else
         if big===true
-            "      $JULIA_CALL $MACHINEFILE $JPROJECT --sysimage=$(ENV["scriptdir"])/.cache/system/sysimage.dylib $scriptdir/bin/$job/run-$JID/job.jl"
+            "      $JULIA_CALL $MACHINEFILE $JPROJECT --sysimage=$(ENV["scriptdir"])/.cache/system/sysimage.dylib $scriptdir/bin/$job/run-$JID/$job-$JID.jl"
         else
-            "      $JULIA_CALL $JPROJECT --sysimage=$(ENV["scriptdir"])/.cache/system/sysimage.dylib -p $big $scriptdir/bin/$job/run-$JID/job.jl"
+            "      $JULIA_CALL $JPROJECT --sysimage=$(ENV["scriptdir"])/.cache/system/sysimage.dylib -p $big $scriptdir/bin/$job/run-$JID/$job-$JID.jl"
         end
     end
 end
 
 function bash_run_file(RN,jit,big,job,JID,scriptdir = ENV["scriptdir"])
-    open("$scriptdir/bin/$job/run-$JID/job.sh",create=true,write=true) do io
+    open("$scriptdir/bin/$job/run-$JID/$job-$JID.sh",create=true,write=true) do io
         write(io,
 "#!/bin/bash
 
-echo \"************************************************************\" >> $scriptdir/bin/$job/run-$JID/job.o
-echo \"run on \$(date) in \$PWD\"  >> $scriptdir/bin/$job/run-$JID/job.o
-echo '-host $(ENV["HOME"]) -j $job -p $big'  >> $scriptdir/bin/$job/run-$JID/job.o
+echo \"************************************************************\" >> $scriptdir/bin/$job/run-$JID/$job-$JID.o
+echo \"run on \$(date) in \$PWD\"  >> $scriptdir/bin/$job/run-$JID/$job-$JID.o
+echo '-host $(ENV["HOME"]) -j $job -p $big'  >> $scriptdir/bin/$job/run-$JID/$job-$JID.o
 
 {
     time {
             {
                 $(julia_call(jit,big,job,JID,scriptdir))
-            } >> $scriptdir/bin/$job/run-$JID/job.o
+            } >> $scriptdir/bin/$job/run-$JID/$job-$JID.o
     }
-} 2>> $scriptdir/bin/$job/run-$JID/job.o
+} 2>> $scriptdir/bin/$job/run-$JID/$job-$JID.o
 "
         )
     end
 end
 
 function julia_run_file(job,jobargs,JID,scriptdir = ENV["scriptdir"],cachedir = ENV["cachedir"])
-    open("$scriptdir/bin/$job/run-$JID/job.jl",create=true,write=true) do io
+    open("$scriptdir/bin/$job/run-$JID/$job-$JID.jl",create=true,write=true) do io
         write(io,
 "using Distributed
 @everywhere begin
@@ -74,12 +74,12 @@ end
 function run(RN,jit,big,job,jobargs,slurmargs,scriptdir = ENV["scriptdir"],cachedir=ENV["cachedir"])
     JID = prep_job(RN,jit,big,job,jobargs,scriptdir,cachedir)
     # run(
-    "bash $scriptdir/bin/$job/run-$JID/job.sh"
+    "bash $scriptdir/bin/$job/run-$JID/$job-$JID.sh"
 end
 
 function queue(RN,jit,big,job,jobargs,slurmargs,scriptdir = ENV["scriptdir"],cachedir=ENV["cachedir"])
     JID = prep_job(RN,jit,big,job,jobargs,scriptdir,cachedir)
-    "sbatch -o $scriptdir/bin/$job/run-$JID/job.o --mail-type=ALL $slurmargs $scriptdir/bin/$job/run-$JID/job.sh"
+    "sbatch -o $scriptdir/bin/$job/run-$JID/$job-$JID.o --mail-type=ALL $slurmargs $scriptdir/bin/$job/run-$JID/$job-$JID.sh"
 end
 
 using SolidState
