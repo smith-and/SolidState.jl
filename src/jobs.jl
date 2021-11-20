@@ -101,18 +101,26 @@ function spray(RN,asd,idxS,idxL,job,chartinfo,neval,f,jit,ps,N,npn,pray)
         end
     end
 
-    pray ? run(`bash $(pwd())/$RN.sh`) : `bash $(pwd())/$RN.sh`
+    pray ? Base.run(`bash $(pwd())/$RN.sh`) : `bash $(pwd())/$RN.sh`
 end
 
-function model_make(f,big,asd,(idxS,idxL),ncpus)
-    RN = "test"
-    job = "models"
-    jit = true
-    comargs = SolidState.Main.twist_series(:bulkhead,1,500)
+function models(f,jit,ps,asds,(idxS,idxL),ncpus,pray)
+    RN = "models"
+    comargs = BSON.load("$(@__DIR__)/mns.bson")[:mns]
 
-    jobargs = (asd,comargs[idxS:idxL])
-    slurmargs = "-n $ncpus -t 5:00:00"
-    f(RN,jit,bigg,job,jobargs,slurmargs)
+    cmds = map(asds) do asd
+        f(RN,false,true,"models",(asd,comargs[idxS:idxL]),"-n $ncpus -t 5:00:00")
+    end
+    # open("$(ENV["scriptdir"])/bin/$RN.sh",create=true,write=true) do io
+    open("$(pwd())/$models.sh",create=true,write=true) do io
+        write(io,"#!/bin/bash \n")
+        map(cmds) do cmd
+            write(io,"$cmd \n")
+        end
+    end
+
+    pray ? Base.run(`bash $(pwd())/$RN.sh`) : `bash $(pwd())/$RN.sh`
+
 end
 
 ########################################################################################

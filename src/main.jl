@@ -78,6 +78,7 @@ Makes the `ASD` and `HamiltonianDensity` data objects and saves them to bson fil
 function models(asd::Symbol, comargs::Vector{Tuple{Int,Int}}, force=false, cachedir=ENV["cachedir"], kargs...)
     models(eval(quote $asd end), comargs, force, cachedir, kargs...)
 end
+
 function models(asd::Function, comargs::Vector{Tuple{Int,Int}}, force=false, cachedir=ENV["cachedir"], kargs...)
         rootdir = isdir("$cachedir/$asd") ? "$cachedir/$asd" : mkpath("$cachedir/$asd");
         hs_asd    = asd()
