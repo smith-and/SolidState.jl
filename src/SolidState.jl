@@ -24,6 +24,7 @@ module SolidState
 
     # Method Bridge to Bashing
     include("main.jl")
+    include("Jobs.jl")
     # include("new_main.jl")
 
     include("group_theory.jl")
