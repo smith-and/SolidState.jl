@@ -109,7 +109,7 @@ function models(f,jit,ps,asds,(idxS,idxL),ncpus,pray)
     comargs = BSON.load("$(@__DIR__)/mns.bson")[:mns]
 
     cmds = map(asds) do asd
-        f(RN,false,true,"models",(asd,comargs[idxS:idxL]),"-n $ncpus -t 5:00:00")
+        f(RN,false,true,"models",(asd,comargs[idxS:idxL]),"-p RM-shared -n $ncpus -t 10:00:00")
     end
     # open("$(ENV["scriptdir"])/bin/$RN.sh",create=true,write=true) do io
     open("$(pwd())/$models.sh",create=true,write=true) do io
