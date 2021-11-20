@@ -125,7 +125,7 @@ end
 
 export qcheck
 function qcheck()
-    run(`squeue -u \$USER`)
+    run(`squeue -u $(ENV["USER"])`)
 end
 
 ########################################################################################
