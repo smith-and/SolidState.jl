@@ -560,27 +560,6 @@ function ASD3()
     merge(asd, wide_gap_wha())
 end
 
-export ASD3
-function ASD3()
-    a = 0.2512
-    c = 0.334
-    asd = Dict(
-        "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 3*c],
-        "sk" => Dict("Atom" => 1, "Layer" => 2,"Pos" => 3,"Spin" => 4,"Orbital" => 5,"Glyph" => 6,"Color" => 7),
-        "sites" => [
-            ("B", 1, [0.0, a / sqrt(3),  -c], (0 // 1, [1]), (1, [2]), :circle, :blue),
-            ("N", 1, [0.0, -a / sqrt(3), -c], (0 // 1, [1]), (1, [2]), :circle, :orange),
-            ("B", 1, [0.0, -a / sqrt(3),  0],  (0 // 1, [1]), (1, [2]), :circle, :blue),
-            ("N", 1, [0.0, a / sqrt(3),   0],  (0 // 1, [1]), (1, [2]), :circle, :orange),
-            ("B", 2, [0.0, a / sqrt(3),  c],  (0 // 1, [1]), (1, [2]), :circle, :blue),
-            ("N", 2, [0.0, -a / sqrt(3), c],  (0 // 1, [1]), (1, [2]), :circle, :orange),
-
-        ],
-        "filling" => 0.5,
-    )
-    merge(asd, wide_gap_wha())
-end
-
 export ASD3AB
 function ASD3AB()
     a = 0.2512
