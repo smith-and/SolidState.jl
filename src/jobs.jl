@@ -112,21 +112,24 @@ function models(f,jit,ps,asds,(idxS,idxL),ncpus,pray)
         f(RN,false,true,"models",(asd,comargs[idxS:idxL]),"-p RM-shared -n $ncpus -t 10:00:00")
     end
     # open("$(ENV["scriptdir"])/bin/$RN.sh",create=true,write=true) do io
-    open("$(pwd())/$models.sh",create=true,write=true) do io
+    open("$(pwd())/$RN.sh",create=true,write=true) do io
         write(io,"#!/bin/bash \n")
         map(cmds) do cmd
             write(io,"$cmd \n")
         end
     end
 
-    pray ? Base.run(`bash $(pwd())/$RN.sh`) : `bash $(pwd())/$RN.sh`
+    pray ? Base.run(pipeline(`bash $(pwd())/$RN.sh`,"$(pwd())/$RN.txt")) : pipeline(`bash $(pwd())/$RN.sh`,"$(pwd())/$RN.txt")
 
 end
 
-export qcheck
 function qcheck()
     Base.run(`squeue -u $(ENV["USER"])`)
 end
+
+function glance(job,r)
+    Base.run(`cat $(ENV["scriptdir"])/bin/$job/run-$r/$job-$r.o`)
+
 
 ########################################################################################
 #### Retrieving Data
