@@ -1,4 +1,33 @@
 ##########################################
+#### Parameter Manipulation
+##########################################
+
+function randomize_hopping!(α,asd)
+    asd["scales"] = map(asd["scales"]|>keys,asd["scales"]|>values) do key,val
+        key=>(
+            as = val.as,
+            ds = val.ds,
+            vs = val.vs.*(1.0.+α.*randn(size(val.vs))),
+            es = val.es,
+        )
+    end|>Dict
+
+    asd
+end
+function randomize_onsite!(α,asd)
+    asd["scales"] = map(asd["scales"]|>keys,asd["scales"]|>values) do key,val
+        key=>(
+            as = val.as,
+            ds = val.ds,
+            vs = val.vs,
+            es = val.es.*(1.0.+α.*rand(size(val.es))),
+        )
+    end|>Dict
+
+    asd
+end
+
+##########################################
 #### Reference Systems
 ##########################################
 
@@ -397,8 +426,8 @@ function ASD1()
             "Color" => 7,
         ),
         "sites" => [
-            ("B", 1, [0.0, a / sqrt(3), -c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
-            ("N", 1, [0.0, -a / sqrt(3), -c / 2], (0 // 1, [1]), (1, [2]), :circle, :orange,),
+            ("B", 1, [0.0, a / sqrt(3), 0], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 1, [0.0, -a / sqrt(3), 0], (0 // 1, [1]), (1, [2]), :circle, :orange,),
         ],
         "filling" => 0.5,
     )

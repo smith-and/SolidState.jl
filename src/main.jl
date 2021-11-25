@@ -234,6 +234,44 @@ function bands(RN, asd, mn::Tuple{Int,Int}, pathlist=["K1","Γ","M1","K'1"], Npa
     "$scriptdir/out/$RN/$asd-$(mn[1])-$(mn[2]).bson"
 end
 
+#### disordered bands
+
+function get_hsp_ticks(dm::DataMap)
+    asdg = SolidState.ASDGeometry(SolidState.CommensurateASD(dm.input.asd(),dm.input.mn));
+    tbks, corner_indices, odimeter = SolidState.Main.path_points(asdg["bz_hs"],[dm.input.base[1]],dm.input.base[2])
+    tick_odimeters = [getindex.(Ref(odimeter[i]),corner_indices[i]) for i=1:length(corner_indices)]
+    odimeter[1]./max(odimeter[1]...),(tick_odimeters[1]./max(odimeter[1]...), dm.input.base[1])
+end
+
+function band_average(RN::String, asd::Function, mn::Tuple{Int,Int}, nsample::Int, α, npath::Int, pathlist::Vector{String}, force::Bool=false)
+    #Compute Data
+    SolidState.Main.models(asd,[mn],force)
+    asdmn       = BSON.load(   "$(ENV["cachedir"])/$asd/asd-$(mn[1])-$(mn[2]).bson")
+    data = pmap(1:nsample,batch_size=Int(ceil(nsample/nworkers()))) do _
+        rasd = SolidState.randomize_hopping!(α,asdmn)
+        dm = DataMap(()->rasd,BANDS,(:bandstructure,),[(:μ,0.0,0.0,1)],(pathlist,npath))
+        dm()
+        dm.chart.data[:,1,1,:]
+    end
+    avg = sum(data)./length(data).|>real
+    std = sqrt.(sum(map(data) do dat
+        (dat.-avg).^2
+    end.|>real)./length(data))
+    dm = DataMap(()->asdmn,BANDS,(:bandstructure,),[(:μ,0.0,0.0,1)],(pathlist,npath))
+    dm.chart.data[:,1,1,:] .= avg
+    #Package Data
+    dict = Dict(
+        :chart => dm.chart,
+        :tick_info => get_hsp_ticks(dm),
+        :ribbon => std,
+        :θ => SolidState.cθ(mn...)*180/π,
+    )
+    #Export Data
+    bson("$(mkpath("$(ENV["scriptdir"])/out/$RN/"))/$asd-$(mn[1])-$(mn[2])-$nsample-$α.bson",dict)
+    #Return Extraction Tag
+    "$asd-$(mn[1])-$(mn[2])-$nsample-$α"
+end
+
 ######################################
 #### Calculating 1D path sections with full structure data retained
 ######################################
@@ -402,12 +440,43 @@ function integral(RN::String, asd, mn::Tuple, chart_integral_info::Tuple, pool=d
     "$asd-$(mn[1])-$(mn[2])-$(hash(chart_integral_info))"
 end
 
+function integral_average(RN::String, asd::Function, mn::Tuple{Int,Int}, chart_integral_info::Tuple, nsample::Int, α::AbstractFloat, pool::AbstractWorkerPool=default_worker_pool(), force::Bool=false)
+    #Compute Data
+    SolidState.Main.models(asd,[mn],force)
+    asdmn       = BSON.load(   "$(ENV["cachedir"])/$asd/asd-$(mn[1])-$(mn[2]).bson")
+    data = pmap(1:nsample,batch_size=Int(ceil(nsample/nworkers()))) do _
+        rasd = SolidState.randomize_hopping!(α,asdmn)
+        dm = DataMap(()->rasd,chart_integral_info[1:end-1]...)
+        di = DataIntegral(dm)
+        di(chart_integral_info[end])
+        di.data[1]
+    end
+    avg = sum(data)./length(data).|>real
+    std = sqrt.(sum(map(data) do dat
+        (real.(dat).-avg).^2
+    end)./length(data))
+    dm = DataMap(()->asdmn,chart_integral_info[1:end-1]...)
+    #Package Data
+    bson("$(mkpath("$(ENV["scriptdir"])/out/$RN"))/$asd-$(mn[1])-$(mn[2])-$nsample-$α-$(hash(chart_integral_info)).bson", Dict(
+        :chart_integral_info => chart_integral_info,
+        :mn => mn,
+        :θ => SolidState.cθ(mn...)*180/π,
+        :asd => asd,
+        :plotdir => mkpath("$(ENV["scriptdir"])/out/$RN"),
+        :handle => "$asd-$(mn[1])-$(mn[2])-$(hash(chart_integral_info))",
+        :base => getindex.(dm.chart.base,1),
+        :data => [avg],
+        :ribbon => std,
+        :npool => length(pool),
+    ))
+    #Return Extraction Tag
+    "$asd-$(mn[1])-$(mn[2])-$nsample-$α-$(hash(chart_integral_info))"
+end
+
 ######################################
 #### Calculating DataSections
 ######################################
-
 function section(RN, asd, mn, dtype, indices, priors, base, Neval, pool=default_worker_pool(), offset=(0.0,0.0), cachedir=ENV["cachedir"], scriptdir=ENV["scriptdir"])
-
     println("Calculation Section for $asd $(mn[1])-$(mn[2])");flush(stdout)
     models(asd,[mn])
     args = Dict(

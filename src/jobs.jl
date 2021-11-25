@@ -83,17 +83,14 @@ function queue(RN,jit,big,job,jobargs,slurmargs,scriptdir = ENV["scriptdir"],cac
 end
 
 using SolidState
-function spray(RN,asd,idxS,idxL,job,chartinfo,neval,f,jit,ps,N,npn,pray)
-
-    slurmargs = "-p RM -N $N --ntasks-per-node=$npn -t 48:00:00"
+function spray(RN,asd,idxS,idxL,job,jobargs,f,jit,ps,slurmargs,pray)
 
     comargs = BSON.load("$(@__DIR__)/mns.bson")[:mns]
     cmds = map(comargs[idxS:idxL]) do mn
-        jobargs = (RN,asd,mn,(chartinfo...,neval))
-        f(RN,jit,ps,job,jobargs,slurmargs)
+        fulljobargs = (RN,asd,mn,jobargs...)
+        f(RN,jit,ps,job,fulljobargs,slurmargs)
     end
-    mkpath("$(pwd())/$(split(RN,"/")[1])")
-    # open("$(ENV["scriptdir"])/bin/$RN.sh",create=true,write=true) do io
+    mkpath("$(pwd())$(string(("/".*split(RN,"/")[1:end-1])...))")|>println
     open("$(pwd())/$RN.sh",create=true,write=true) do io
         write(io,"#!/bin/bash \n")
         map(cmds) do cmd
@@ -102,14 +99,15 @@ function spray(RN,asd,idxS,idxL,job,chartinfo,neval,f,jit,ps,N,npn,pray)
     end
 
     pray ? Base.run(`bash $(pwd())/$RN.sh`) : `bash $(pwd())/$RN.sh`
+
 end
 
-function models(f,jit,ps,asds,(idxS,idxL),ncpus,pray)
+function models(f,jit,ps,asds,(idxS,idxL),slurmargs,pray)
     RN = "models"
     comargs = BSON.load("$(@__DIR__)/mns.bson")[:mns]
 
     cmds = map(asds) do asd
-        f(RN,false,true,"models",(asd,comargs[idxS:idxL]),"-p RM-shared -n $ncpus -t 10:00:00")
+        f(RN,false,true,"models",(asd,comargs[idxS:idxL]),slurmargs)
     end
     # open("$(ENV["scriptdir"])/bin/$RN.sh",create=true,write=true) do io
     open("$(pwd())/$RN.sh",create=true,write=true) do io
@@ -129,7 +127,7 @@ end
 
 function glance(job,r)
     Base.run(`cat $(ENV["scriptdir"])/bin/$job/run-$r/$job-$r.o`)
-
+end
 
 ########################################################################################
 #### Retrieving Data
@@ -138,18 +136,25 @@ function pull_b2_data(RN)
     Base.run(`rsync -r --progress asmithc@bridges2.psc.edu:/ocean/projects/phy190028p/asmithc/scripts/out/$RN $(ENV["scriptdir"])/out/`)
 end
 
-function aggregate_data(RN,force=false)
-    if !isfile("$(ENV["scriptdir"])/out/$RN/$RN.bson")
-        files = readdir("$(ENV["scriptdir"])/out/$RN", join=true)
+function aggregate_data(dir,RN,force=false)
+    if !isfile("$(ENV["scriptdir"])/out/$dir/$RN/$RN.bson")
+        files = readdir("$(ENV["scriptdir"])/out/$dir/$RN", join=true)
         data = BSON.load.(files)
-        bson("$(ENV["scriptdir"])/out/$RN/$RN.bson",Dict(:data=>data))
-    elseif isfile("$(ENV["scriptdir"])/out/$RN/$RN.bson")&&force
-        Base.rm("$(ENV["scriptdir"])/out/$RN/$RN.bson")
-        files = readdir("$(ENV["scriptdir"])/out/$RN", join=true)
+        bson("$(ENV["scriptdir"])/out/$dirks/$RN.bson",Dict(:data=>data))
+    elseif isfile("$(ENV["scriptdir"])/out/$dir/$RN/$RN.bson")&&force
+        Base.rm("$(ENV["scriptdir"])/out/$dir/$RN/$RN.bson")
+        files = readdir("$(ENV["scriptdir"])/out/$dir/$RN", join=true)
         data = BSON.load.(files)
-        bson("$(ENV["scriptdir"])/out/$RN/$RN.bson",Dict(:data=>data))
+        bson("$(ENV["scriptdir"])/out/$dir/$RN.bson",Dict(:data=>data))
     else
         println("already aggregated")
+    end
+end
+
+
+function aggregate_project(dir,force=false)
+    map(readdir("$(ENV["scriptdir"])/out/$dir")) do RN
+        aggregate_data(dir,RN,force)
     end
 end
 
