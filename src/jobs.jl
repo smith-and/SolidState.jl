@@ -18,7 +18,7 @@ function julia_call(RN,name,jit,big,job,JID,scriptdir=ENV["scriptdir"])
         if big===true
             "      $JULIA_CALL $MACHINEFILE $JPROJECT --sysimage=$(ENV["scriptdir"])/.cache/system/sysimage.dylib $(pwd())/$RN/$name/bin/run-$JID/$JID-$name.jl"
         else
-            "      $JULIA_CALL $JPROJECT --sysimage=$(ENV["scriptdir"])/.cache/system/sysimage.dylib -p $big $(pwd())/$RN/$name/bin/run-$JID/$JID-$name.jl"
+            "      $JULIA_CALL $JPROJECT --sysimage=$(ENV["cachedir"])/system/sysimage.dylib -p $big $(pwd())/$RN/$name/bin/run-$JID/$JID-$name.jl"
         end
     end
 end
@@ -90,7 +90,7 @@ function run_env_setup(p=1)
         (queue,false, true)
     else
         ENV["scriptdir"] = "$(ENV["HOME"])/Dropbox/Graduate/scripts"
-        ENV["cachedir"] = "$(ENV["HOME"])/Dropbox/Graduate/scripts/.cache"
+        ENV["cachedir"] = "$(ENV["HOME"])/Dropbox/Graduate/scripts/cache"
         (run,  true, p)
     end
 end
@@ -166,7 +166,7 @@ function qcheck()
 end
 
 function glance(job,r)
-    Base.run(`cat $(ENV["scriptdir"])/$job/bin/run-$r/$job-$r.o`)
+    Base.run(`cat $(pwd())/$job/bin/run-$r/$r-$job.o`)
 end
 
 function check(job,r)
