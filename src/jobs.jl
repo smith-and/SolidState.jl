@@ -152,7 +152,7 @@ function spray(RN::String,asds::AbstractVector,jobs::AbstractDict,pray::Bool;p=1
         end
     end
 
-    pray ? Base.run(`bash $(pwd())/$RN/$RN-$(hash(jobs)).sh`) : `bash $(pwd())/$RN/$RN-$(hash(jobs)).sh`
+    pray ? Base.run(pipeline(`bash $(pwd())/$RN/$RN-$(hash(jobs)).sh`,stdout="$(pwd())/$RN/$RN-$(hash(jobs)).o")) : `bash $(pwd())/$RN/$RN-$(hash(jobs)).sh`
 
 end
 

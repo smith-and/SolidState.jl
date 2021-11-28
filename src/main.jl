@@ -439,11 +439,11 @@ function integral_average(RN::String, asd::Function, mn::Tuple{Int,Int}, chart_i
     #Compute Data
     SolidState.Main.models(asd,[mn],force)
     asdmn       = BSON.load(   "$(ENV["cachedir"])/$asd/asd-$(mn[1])-$(mn[2]).bson")
-    data = pmap(1:nsample,batch_size=Int(ceil(nsample/nworkers()))) do _
+    data = map(1:nsample) do _
         rasd = SolidState.randomize_hopping!(α,asdmn)
         dm = DataMap(()->rasd,chart_integral_info[1:end-1]...)
         di = DataIntegral(dm)
-        di(chart_integral_info[end])
+        di(chart_integral_info[end],pool)
         di.data[1]
     end
     avg = sum(data)./length(data)
