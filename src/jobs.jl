@@ -156,7 +156,39 @@ function spray(RN::String,asds::AbstractVector,jobs::AbstractDict,pray::Bool;p=1
 end
 
 ########################################################################################
-#### SLURM Utilities
+#### Utilities
+using Pkg;
+
+function update_package()
+
+    if ENV["HOME"]=="/jet/home/asmithc"
+        Base.rm("$(ENV["HOME"])/.julia/dev/DraftMill",force=true,recursive=true)
+        Base.rm("$(ENV["HOME"])/.julia/dev/SolidState",force=true,recursive=true)
+        Pkg.rm("SolidState")
+        Pkg.rm("DraftMill")
+        Pkg.develop(url="https://gitlab.com/solidstateapps/SolidState")
+        Pkg.develop(url="https://gitlab.com/smith-and/PaperMill.jl")
+    else
+        WD=`pwd`
+        dir = pwd()
+
+        cd("$HOME/Dropbox/Graduate/dev/SolidState")
+
+        Base.run(
+        `git add .
+        git commit -m 'update'
+        git push`
+        )
+
+        cd $HOME/Dropbox/Graduate/dev/DraftMill.jl
+        git add .
+        echo `git status`
+        git commit -m 'update'
+        git push
+
+        cd $WD
+    end
+end
 
 function qcheck()
     Base.run(`squeue -u $(ENV["USER"])`)
@@ -168,6 +200,16 @@ end
 
 function check(job,r)
     Base.run(`cat $(ENV["scriptdir"])/$job/bin/run-$r/$job-$r.jl`)
+end
+
+function mount()
+    mkpath("$(ENV["HOME"])/Dropbox/Graduate/scripts/b2scripts")
+    Base.run(`sshfs asmithc@bridges2.psc.edu:/ocean/projects/phy190028p/asmithc/scripts $(ENV["HOME"])/Dropbox/Graduate/scripts/b2scripts`)
+end
+
+function umount()
+    Base.run(`umount $(ENV["HOME"])/Dropbox/Graduate/scripts/b2scripts`)
+    rm("$(ENV["HOME"])/Dropbox/Graduate/scripts/b2scripts",recursive=true)
 end
 
 ########################################################################################
