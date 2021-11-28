@@ -83,11 +83,23 @@ function queue(RN,name,jit,big,job,jobargs,slurmargs,scriptdir = ENV["scriptdir"
     "sbatch -o $(pwd())/$RN/$name/bin/run-$JID/$JID-$name.o --mail-type=ALL $slurmargs $(pwd())/$RN/$name/bin/run-$JID/$JID-$name.sh"
 end
 
-function models(RN,asds,(idxS,idxL),f,jit,ps,slurmargs,pray)
-    comargs = BSON.load("$(@__DIR__)/mns.bson")[:mns]
+function run_env_setup(p=1)
+    if ENV["HOME"]=="/jet/home/asmithc"
+        ENV["scriptdir"] = "/ocean/projects/phy190028p/asmithc/scripts"
+        ENV["cachedir"]  = "/ocean/projects/phy190028p/asmithc/scripts/cache"
+        (queue,false, true)
+    else
+        ENV["scriptdir"] = "$(ENV["HOME"])/Dropbox/Graduate/scripts"
+        ENV["cachedir"] = "$(ENV["HOME"])/Dropbox/Graduate/scripts/.cache"
+        (run,  true, p)
+    end
+end
 
+function models(RN,asds,(idxS,idxL),slurmargs,pray)
+    f,jit,ps = run_env_setup()
+    comargs = BSON.load("$(@__DIR__)/mns.bson")[:mns]
     cmds = map(asds) do asd
-        f(RN,"models",false,true,"models",(asd,comargs[idxS:idxL]),slurmargs)
+        f(RN,"models",true,1,"models",(asd,comargs[idxS:idxL]),slurmargs)
     end
     # open("$(ENV["scriptdir"])/bin/$RN.sh",create=true,write=true) do io
     open("$(pwd())/$RN/models/$asd-$idxS-$idxL.sh",create=true,write=true) do io
@@ -124,18 +136,6 @@ end
 function spray(RN::String,name::String,asds::AbstractVector,rng,job,jobargs,runargs)
     map(asds) do asd
         spray(RN,name,asd,rng,job,jobargs,runargs...)
-    end
-end
-
-function run_env_setup(p=1)
-    if ENV["HOME"]=="/jet/home/asmithc"
-        ENV["scriptdir"] = "/ocean/projects/phy190028p/asmithc/scripts"
-        ENV["cachedir"]  = "/ocean/projects/phy190028p/asmithc/scripts/cache"
-        (queue,false, true)
-    else
-        ENV["scriptdir"] = "$(ENV["HOME"])/Dropbox/Graduate/scripts"
-        ENV["cachedir"] = "$(ENV["HOME"])/Dropbox/Graduate/scripts/.cache"
-        (run,  true, p)
     end
 end
 
