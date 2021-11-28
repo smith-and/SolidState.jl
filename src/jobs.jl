@@ -177,7 +177,7 @@ function update_package()
         try Base.run(`git commit -m 'update'`); catch end
         Base.run(`git push`)
 
-        cd("$(ENV["HOME"])/Dropbox/Graduate/dev/DraftMill")
+        cd("$(ENV["HOME"])/Dropbox/Graduate/dev/DraftMill.jl")
         Base.run(`git add .`)
         Base.run(`git status`)
         try Base.run(`git commit -m 'update'`); catch end
