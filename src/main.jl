@@ -243,7 +243,7 @@ function get_hsp_ticks(dm::DataMap)
     odimeter[1]./max(odimeter[1]...),(tick_odimeters[1]./max(odimeter[1]...), dm.input.base[1])
 end
 
-function band_average(RN::String, asd::Function, mn::Tuple{Int,Int}, nsample::Int, α, npath::Int, pathlist::Vector{String}, force::Bool=false)
+function band_average(RN::String, asd::Function, mn::Tuple{Int,Int}, npath::Int, pathlist::Vector{String}, nsample::Int, α, force::Bool=false)
     #Compute Data
     SolidState.Main.models(asd,[mn],force)
     asdmn       = BSON.load(   "$(ENV["cachedir"])/$asd/asd-$(mn[1])-$(mn[2]).bson")
@@ -451,9 +451,9 @@ function integral_average(RN::String, asd::Function, mn::Tuple{Int,Int}, chart_i
         di(chart_integral_info[end])
         di.data[1]
     end
-    avg = sum(data)./length(data).|>real
+    avg = sum(data)./length(data)
     std = sqrt.(sum(map(data) do dat
-        (real.(dat).-avg).^2
+        (dat.-avg).^2
     end)./length(data))
     dm = DataMap(()->asdmn,chart_integral_info[1:end-1]...)
     #Package Data
@@ -583,9 +583,7 @@ function load(RN,name)
 end
 
 function extract(RN,name,plotfunction,args...;)
-    datafile = "$(ENV["scriptdir"])/out/$RN/$name.bson"
-    plotdir = "$(ENV["scriptdir"])/plot/$RN"|>mkpath
-    plotfunction(args...; BSON.load(datafile)..., plotdir=plotdir)
+    plotfunction(args...; BSON.load("$(ENV["scriptdir"])/out/$RN/$name.bson")...)
 end
 
 function extract(;RN,mainf,extractf,asd,mn,main_info,force=false)
@@ -611,14 +609,6 @@ function extract(extract_info;RN,mainf,extractf,asd,mn,main_info,force=false)
         # SolidState.Main.load(RN,"$asd-$(mn[1])-$(mn[2])-$(hash(integral_info))")
         SolidState.Main.extract(RN,"$asd-$(mn[1])-$(mn[2])-$(hash(main_info))",extractf,extract_info...)
     end
-end
-
-function b2_extract(RN,name,plotfunction,args...)
-    plotdir = "$(ENV["scriptdir"])/plot/b2-$RN"|>mkpath
-    source = "$(ENV["b2scriptdir"])/out/$RN/$name.bson"
-    target = "$(mkpath("$(ENV["scriptdir"])/out/b2-$RN"))/$name.bson"
-    run(`rsync -r --progress asmithc@bridges2.psc.edu:$source $target`)
-    plotfunction(args...; BSON.load(target)..., plotdir=plotdir)
 end
 
 end
