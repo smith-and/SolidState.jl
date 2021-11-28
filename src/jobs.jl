@@ -169,24 +169,24 @@ function update_package()
         Pkg.develop(url="https://gitlab.com/solidstateapps/SolidState")
         Pkg.develop(url="https://gitlab.com/smith-and/PaperMill.jl")
     else
-        WD=`pwd`
-        dir = pwd()
-
-        cd("$HOME/Dropbox/Graduate/dev/SolidState")
-
-        Base.run(
-        `git add .
-        git commit -m 'update'
-        git push`
-        )
-
-        cd $HOME/Dropbox/Graduate/dev/DraftMill.jl
-        git add .
-        echo `git status`
-        git commit -m 'update'
-        git push
-
-        cd $WD
+        # dir = pwd()
+        #
+        # cd("$HOME/Dropbox/Graduate/dev/SolidState")
+        #
+        # Base.run(
+        # `git add .
+        # git commit -m 'update'
+        # git push`
+        # )
+        #
+        # cd(dir)
+        # cd $HOME/Dropbox/Graduate/dev/DraftMill.jl
+        # git add .
+        # echo `git status`
+        # git commit -m 'update'
+        # git push
+        #
+        # cd $WD
     end
 end
 
