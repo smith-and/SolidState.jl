@@ -412,32 +412,25 @@ end
 integral_tag(asd,mn,chart_integral_info) = "$asd-$(mn[1])-$(mn[2])-$(hash(chart_integral_info))"
 
 function integral(RN::String, asd, mn::Tuple, chart_integral_info::Tuple, pool=default_worker_pool(), cachedir=ENV["cachedir"], scriptdir=ENV["scriptdir"]; force=false)
-    if !isfile("$scriptdir/out/$RN/$(integral_tag(asd,mn,chart_integral_info)).bson")||force
-        models(asd,[mn],force)
-        println("For model $asd $(mn[1])-$(mn[2])");flush(stdout)
-        println("Calculating Integral $chart_integral_info");flush(stdout)
-        di0 = DataIntegral(asd, mn, chart_integral_info[1:end-1]...)
 
-        di = di0(chart_integral_info[end], pool)
+    di0 = DataIntegral(asd, mn, chart_integral_info[1:end-1]...)
+    @timed di = di0(chart_integral_info[end], pool)
 
-        bson("$(mkpath("$scriptdir/out/$RN"))/$asd-$(mn[1])-$(mn[2])-$(hash(chart_integral_info)).bson", Dict(
-            :chart_integral_info => chart_integral_info,
-            :mn => mn,
-            :θ => SolidState.cθ(mn...)*180/π,
-            :asd => asd,
-            :base => getindex.(di.dm.chart.base,1),
-            :data => di.data,
-            :ribbon  => di.err,
-            :npool => length(pool),
-        ))
-    end
+    bson("$(mkpath("$scriptdir/out/$RN"))/$asd-$(mn[1])-$(mn[2])-$(hash(chart_integral_info)).bson", Dict(
+        :chart_integral_info => chart_integral_info,
+        :mn => mn,
+        :θ => SolidState.cθ(mn...)*180/π,
+        :asd => asd,
+        :base => getindex.(di.dm.chart.base,1),
+        :data => di.data,
+        :ribbon  => di.err,
+        :npool => length(pool),
+    ))
 
     "$asd-$(mn[1])-$(mn[2])-$(hash(chart_integral_info))"
 end
 
 function integral_average(RN::String, asd::Function, mn::Tuple{Int,Int}, chart_integral_info::Tuple, nsample::Int, α::AbstractFloat, pool::AbstractWorkerPool=default_worker_pool(), force::Bool=false)
-    #Compute Data
-    SolidState.Main.models(asd,[mn],force)
     asdmn       = BSON.load(   "$(ENV["cachedir"])/$asd/asd-$(mn[1])-$(mn[2]).bson")
     data = map(1:nsample) do _
         rasd = SolidState.randomize_hopping!(α,asdmn)

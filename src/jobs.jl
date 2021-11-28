@@ -130,7 +130,7 @@ end
 function run_env_setup(p=1)
     if ENV["HOME"]=="/jet/home/asmithc"
         ENV["scriptdir"] = "/ocean/projects/phy190028p/asmithc/scripts"
-        ENV["cachedir"]  = "/ocean/projects/phy190028p/asmithc/scripts/.cache"
+        ENV["cachedir"]  = "/ocean/projects/phy190028p/asmithc/scripts/cache"
         (queue,false, true)
     else
         ENV["scriptdir"] = "$(ENV["HOME"])/Dropbox/Graduate/scripts"
