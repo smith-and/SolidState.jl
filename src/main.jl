@@ -60,6 +60,12 @@ end
 #### Make Tightbinding Models
 ######################################
 
+function stat_print(stats)
+    println("time: $(stats.time) \n")
+    println("time: $(stats.bytes/1e9) \n")
+end
+
+timed
 function model_id(x)
         try
                 s1,s2 = findall(isequal('-'),x)
@@ -86,8 +92,8 @@ function models(asd::Function, comargs::Vector{Tuple{Int,Int}}, force=false, cac
         println("");flush(stdout)
         println("Making $asd Models in $cachedir");flush(stdout)
         for mn ∈ comargs
-                println("making $mn");
-                stat = @timed if mn ∉ made_models || force
+                println("making $mn");flush(stdout)
+                stats = @timed if mn ∉ made_models || force
                         com_asd = SolidState.CommensurateASD(hs_asd,mn);
                         hd  = TightBindingDensity(com_asd)
                         bson("$rootdir/asd-$(mn[1])-$(mn[2]).bson",com_asd)
@@ -95,7 +101,8 @@ function models(asd::Function, comargs::Vector{Tuple{Int,Int}}, force=false, cac
                 else
                         println("$mn already made");flush(stdout)
                 end
-                println(stat);
+                println(stats); flush(stdout)
+                flush(stdout)
         end
         nothing
 end
@@ -251,8 +258,8 @@ function band_average(RN::String, asd::Function, mn::Tuple{Int,Int}, npath::Int,
     data = pmap(1:nsample,batch_size=Int(ceil(nsample/nworkers()))) do _
         rasd = SolidState.randomize_hopping!(α,asdmn)
         dm = DataMap(()->rasd,BANDS,(:bandstructure,),[(:μ,0.0,0.0,1)],(pathlist,npath))
-        stat = @timed dm()
-        println(stat);
+        stats = @timed dm()
+        println(stats); flush(stdout)
         dm.chart.data[:,1,1,:]
     end
     avg = sum(data)./length(data).|>real
@@ -416,8 +423,8 @@ integral_tag(asd,mn,chart_integral_info) = "$asd-$(mn[1])-$(mn[2])-$(hash(chart_
 function integral(RN::String, asd, mn::Tuple, chart_integral_info::Tuple, pool=default_worker_pool(), cachedir=ENV["cachedir"], scriptdir=ENV["scriptdir"]; force=false)
 
     di = DataIntegral(asd, mn, chart_integral_info[1:end-1]...)
-    stat = @timed (di(chart_integral_info[end], pool))
-    println(stat);
+    stats = @timed (di(chart_integral_info[end], pool))
+    println(stats); flush(stdout)
 
     bson("$(mkpath("$scriptdir/out/$RN"))/$asd-$(mn[1])-$(mn[2])-$(hash(chart_integral_info)).bson", Dict(
         :chart_integral_info => chart_integral_info,
@@ -439,8 +446,8 @@ function integral_average(RN::String, asd::Function, mn::Tuple{Int,Int}, chart_i
         rasd = SolidState.randomize_hopping!(α,asdmn)
         dm = DataMap(()->rasd,chart_integral_info[1:end-1]...)
         di = DataIntegral(dm)
-        stat = @timed di(chart_integral_info[end],pool)
-        println(stat); 
+        stats = @timed di(chart_integral_info[end],pool)
+        println(stats); flush(stdout)
         di.data[1]
     end
     avg = sum(data)./length(data)
