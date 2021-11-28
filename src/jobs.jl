@@ -90,14 +90,14 @@ function models(RN,asds,(idxS,idxL),f,jit,ps,slurmargs,pray)
         f(RN,"models",false,true,"models",(asd,comargs[idxS:idxL]),slurmargs)
     end
     # open("$(ENV["scriptdir"])/bin/$RN.sh",create=true,write=true) do io
-    open("$(pwd())/$RN/models/$asd.sh",create=true,write=true) do io
+    open("$(pwd())/$RN/models/$asd-$idxS-$idxL.sh",create=true,write=true) do io
         write(io,"#!/bin/bash \n")
         map(cmds) do cmd
             write(io,"$cmd \n")
         end
     end
 
-    pray ? Base.run(`bash $(pwd())/$RN/models/$asd.sh`) : `bash $(pwd())/$RN/models/$asd.sh`
+    pray ? Base.run(`bash $(pwd())/$RN/models/$asd-$idxS-$idxL.sh`) : `bash $(pwd())/$RN/models/$asd-$idxS-$idxL.sh`
 
 end
 
@@ -110,14 +110,14 @@ function spray(RN::String,name::String,asd::Function,(idxS,idxL),job,jobargs,f,j
     end
     # mkpath("$(pwd())$(string(("/".*split(RN,"/")[1:end-1])...))")|>println
     mkpath("$(pwd())/$RN/$name")
-    open("$(pwd())/$RN/$name/$asd.sh",create=true,write=true) do io
+    open("$(pwd())/$RN/$name/$asd-$idxS-$idxL.sh",create=true,write=true) do io
         write(io,"#!/bin/bash \n")
         map(cmds) do cmd
             write(io,"$cmd \n")
         end
     end
 
-    pray ? Base.run(`bash $(pwd())/$RN/$name/$asd.sh`) : `bash $(pwd())/$RN/$name/$asd.sh`
+    pray ? Base.run(`bash $(pwd())/$RN/$name/$asd-$idxS-$idxL.sh`) : `bash $(pwd())/$RN/$name/$asd-$idxS-$idxL.sh`
 
 end
 
@@ -145,14 +145,14 @@ function spray(RN::String,asds::AbstractVector,jobs::AbstractDict,pray::Bool;p=1
         spray(RN,name,asds,rng,job,jobargs,runargs)
     end...)
 
-    open("$(pwd())/$RN/$RN.sh",create=true,write=true) do io
+    open("$(pwd())/$RN/$RN-$(hash(jobs)).sh",create=true,write=true) do io
         write(io,"#!/bin/bash \n")
         map(cmds) do cmd
             write(io,"$(string(cmd)[2:end-1]) \n")
         end
     end
 
-    pray ? Base.run(`bash $(pwd())/$RN/$RN.sh`) : `bash $(pwd())/$RN/$RN.sh`
+    pray ? Base.run(`bash $(pwd())/$RN/$RN-$(hash(jobs)).sh`) : `bash $(pwd())/$RN/$RN-$(hash(jobs)).sh`
 
 end
 
@@ -172,13 +172,13 @@ function check(job,r)
 end
 
 function mount()
-    mkpath("$(ENV["HOME"])/Dropbox/Graduate/scripts/b2scripts")
-    Base.run(`sshfs asmithc@bridges2.psc.edu:/ocean/projects/phy190028p/asmithc/scripts $(ENV["HOME"])/Dropbox/Graduate/scripts/b2scripts`)
+    mkpath("$(ENV["HOME"])/Dropbox/Graduate/scriptsb2")
+    Base.run(`sshfs asmithc@bridges2.psc.edu:/ocean/projects/phy190028p/asmithc/scripts $(ENV["HOME"])/Dropbox/Graduate/scriptsb2`)
 end
 
 function umount()
-    Base.run(`umount $(ENV["HOME"])/Dropbox/Graduate/scripts/b2scripts`)
-    rm("$(ENV["HOME"])/Dropbox/Graduate/scripts/b2scripts",recursive=true)
+    Base.run(`umount $(ENV["HOME"])/Dropbox/Graduate/scriptsb2`)
+    rm("$(ENV["HOME"])/Dropbox/Graduate/scriptsb2",recursive=true)
 end
 
 ########################################################################################
@@ -210,9 +210,9 @@ function aggregate_project(dir,force=false)
     end
 end
 
-function datapull(RN)
-    Jobs.pull_b2_data(RN)
-    Jobs.aggregate_data(RN, true)
+function pull_data(RN::String)
+    pull_b2_data(RN)
+    aggregate_project.("$RN/".*readdir("$(ENV["scriptdir"])/out/$RN"),true)
 end
 
 end

@@ -423,16 +423,11 @@ function integral(RN::String, asd, mn::Tuple, chart_integral_info::Tuple, pool=d
         bson("$(mkpath("$scriptdir/out/$RN"))/$asd-$(mn[1])-$(mn[2])-$(hash(chart_integral_info)).bson", Dict(
             :chart_integral_info => chart_integral_info,
             :mn => mn,
+            :θ => SolidState.cθ(mn...)*180/π,
             :asd => asd,
-            :dtype => chart_integral_info[1],
-            :scriptdir => scriptdir,
-            :cachedir => cachedir,
-            :plotdir => mkpath("$scriptdir/out/$RN"),
-            :handle => "$asd-$(mn[1])-$(mn[2])-$(hash(chart_integral_info))",
-            :data => di.data,
-            :err  => di.err,
-            :evals => di.evals,
             :base => getindex.(di.dm.chart.base,1),
+            :data => di.data,
+            :ribbon  => di.err,
             :npool => length(pool),
         ))
     end
@@ -462,11 +457,9 @@ function integral_average(RN::String, asd::Function, mn::Tuple{Int,Int}, chart_i
         :mn => mn,
         :θ => SolidState.cθ(mn...)*180/π,
         :asd => asd,
-        :plotdir => mkpath("$(ENV["scriptdir"])/out/$RN"),
-        :handle => "$asd-$(mn[1])-$(mn[2])-$(hash(chart_integral_info))",
         :base => getindex.(dm.chart.base,1),
         :data => [avg],
-        :ribbon => std,
+        :ribbon => std./2,
         :npool => length(pool),
     ))
     #Return Extraction Tag
