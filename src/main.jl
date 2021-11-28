@@ -86,12 +86,12 @@ function models(asd::Function, comargs::Vector{Tuple{Int,Int}}, force=false, cac
         println("");flush(stdout)
         println("Making $asd Models in $cachedir");flush(stdout)
         for mn ∈ comargs
-                if mn ∉ made_models || force
+                println("making $mn")
+                @timed if mn ∉ made_models || force
                         com_asd = SolidState.CommensurateASD(hs_asd,mn);
                         hd  = TightBindingDensity(com_asd)
                         bson("$rootdir/asd-$(mn[1])-$(mn[2]).bson",com_asd)
                         data_export("$rootdir/hd-$(mn[1])-$(mn[2]).bson",hd)
-                        println("$mn made");flush(stdout)
                 else
                         println("$mn already made");flush(stdout)
                 end
@@ -250,7 +250,7 @@ function band_average(RN::String, asd::Function, mn::Tuple{Int,Int}, npath::Int,
     data = pmap(1:nsample,batch_size=Int(ceil(nsample/nworkers()))) do _
         rasd = SolidState.randomize_hopping!(α,asdmn)
         dm = DataMap(()->rasd,BANDS,(:bandstructure,),[(:μ,0.0,0.0,1)],(pathlist,npath))
-        dm()
+        @timed dm()
         dm.chart.data[:,1,1,:]
     end
     avg = sum(data)./length(data).|>real
@@ -436,7 +436,7 @@ function integral_average(RN::String, asd::Function, mn::Tuple{Int,Int}, chart_i
         rasd = SolidState.randomize_hopping!(α,asdmn)
         dm = DataMap(()->rasd,chart_integral_info[1:end-1]...)
         di = DataIntegral(dm)
-        di(chart_integral_info[end],pool)
+        @timed di(chart_integral_info[end],pool)
         di.data[1]
     end
     avg = sum(data)./length(data)
