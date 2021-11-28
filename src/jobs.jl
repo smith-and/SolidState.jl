@@ -1,6 +1,7 @@
 module Jobs
 
 using BSON
+using Pkg
 
 const JULIA_CALL="julia -O 3"
 const MACHINEFILE="--machine-file <(srun hostname -s)"
@@ -157,35 +158,6 @@ end
 
 ########################################################################################
 #### Utilities
-using Pkg;
-
-function update_package()
-
-    if ENV["HOME"]=="/jet/home/asmithc"
-        Base.rm("$(ENV["HOME"])/.julia/dev/DraftMill",force=true,recursive=true)
-        Base.rm("$(ENV["HOME"])/.julia/dev/SolidState",force=true,recursive=true)
-        Pkg.rm("SolidState")
-        Pkg.rm("DraftMill")
-        Pkg.develop(url="https://gitlab.com/solidstateapps/SolidState")
-        Pkg.develop(url="https://gitlab.com/smith-and/PaperMill.jl")
-    else
-        dir = pwd()
-
-        cd("$(ENV["HOME"])/Dropbox/Graduate/dev/SolidState")
-        Base.run(`git add .`)
-        Base.run(`git status`)
-        try Base.run(`git commit -m 'update'`); catch end
-        Base.run(`git push`)
-
-        cd("$(ENV["HOME"])/Dropbox/Graduate/dev/DraftMill.jl")
-        Base.run(`git add .`)
-        Base.run(`git status`)
-        try Base.run(`git commit -m 'update'`); catch end
-        Base.run(`git push`)
-
-        cd(dir)
-    end
-end
 
 function qcheck()
     Base.run(`squeue -u $(ENV["USER"])`)
