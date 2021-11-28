@@ -357,8 +357,8 @@ function small_gap_wha()
     vppπNN = 0.15
     vppπNB = 2.3
     vppσ = 0.2
-    ϵBB = 0.10
-    ϵNN = -0.10
+    ϵBB = 0.20
+    ϵNN = -0.20
     Dict(
         "lbase" => 10,
         "cutoff" => 20 * a / sqrt(3),
