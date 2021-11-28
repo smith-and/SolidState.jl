@@ -109,7 +109,7 @@ function models(RN,asds,(idxS,idxL),slurmargs,pray)
         end
     end
 
-    pipe = pipeline(`bash $(pwd())/$RN/models/models-$idxS-$idxL-$(hash(asds)).sh`,stdout="$(pwd())/$RN/$RN-$(hash(jobs)).o")
+    pipe = pipeline(`bash $(pwd())/$RN/models/models-$idxS-$idxL-$(hash(asds)).sh`,stdout="$(pwd())/$RN/models/models-$idxS-$idxL-$(hash(asds)).o")
     pray ? Base.run(pipe) : pipe
 
 end
