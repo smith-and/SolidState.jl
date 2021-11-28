@@ -63,9 +63,9 @@ end
 function stat_print(stats)
     println("time: $(stats.time) \n")
     println("time: $(stats.bytes/1e9) \n")
+    flush(stdout)
 end
 
-timed
 function model_id(x)
         try
                 s1,s2 = findall(isequal('-'),x)
@@ -101,8 +101,7 @@ function models(asd::Function, comargs::Vector{Tuple{Int,Int}}, force=false, cac
                 else
                         println("$mn already made");flush(stdout)
                 end
-                println(stats); flush(stdout)
-                flush(stdout)
+                stat_print(stats)
         end
         nothing
 end
@@ -253,13 +252,13 @@ end
 
 function band_average(RN::String, asd::Function, mn::Tuple{Int,Int}, npath::Int, pathlist::Vector{String}, nsample::Int, α, force::Bool=false)
     #Compute Data
-    SolidState.Main.models(asd,[mn],force)
+    # SolidState.Main.models(asd,[mn],force)
     asdmn       = BSON.load(   "$(ENV["cachedir"])/$asd/asd-$(mn[1])-$(mn[2]).bson")
     data = pmap(1:nsample,batch_size=Int(ceil(nsample/nworkers()))) do _
         rasd = SolidState.randomize_hopping!(α,asdmn)
         dm = DataMap(()->rasd,BANDS,(:bandstructure,),[(:μ,0.0,0.0,1)],(pathlist,npath))
         stats = @timed dm()
-        println(stats); flush(stdout)
+        stat_print(stats)
         dm.chart.data[:,1,1,:]
     end
     avg = sum(data)./length(data).|>real
@@ -424,7 +423,7 @@ function integral(RN::String, asd, mn::Tuple, chart_integral_info::Tuple, pool=d
 
     di = DataIntegral(asd, mn, chart_integral_info[1:end-1]...)
     stats = @timed (di(chart_integral_info[end], pool))
-    println(stats); flush(stdout)
+    stat_print(stats)
 
     bson("$(mkpath("$scriptdir/out/$RN"))/$asd-$(mn[1])-$(mn[2])-$(hash(chart_integral_info)).bson", Dict(
         :chart_integral_info => chart_integral_info,
@@ -447,7 +446,7 @@ function integral_average(RN::String, asd::Function, mn::Tuple{Int,Int}, chart_i
         dm = DataMap(()->rasd,chart_integral_info[1:end-1]...)
         di = DataIntegral(dm)
         stats = @timed di(chart_integral_info[end],pool)
-        println(stats); flush(stdout)
+        stat_print(stats)
         di.data[1]
     end
     avg = sum(data)./length(data)
