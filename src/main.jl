@@ -259,24 +259,24 @@ function band_average(RN::String, asd::Function, mn::Tuple{Int,Int}, npath::Int,
         dm = DataMap(()->rasd,BANDS,(:bandstructure,),[(:μ,0.0,0.0,1)],(pathlist,npath))
         stats = @timed dm()
         stat_print(stats)
-        bson("$(mkpath("$(ENV["scriptdir"])/out/$RN/samples"))/sample-$i.bson",Dict(:data=>dm.chart.data[:,1,1,:]))
+        bson("$(mkpath("$(ENV["scriptdir"])/out/$RN/samples-$(mn[1])-$(mn[2])"))/sample-$i.bson",Dict(:data=>dm.chart.data[:,1,1,:]))
         nothing
     end
 
     dm = DataMap(()->BSON.load(   "$(ENV["cachedir"])/$asd/asd-$(mn[1])-$(mn[2]).bson"),BANDS,(:bandstructure,),[(:μ,0.0,0.0,1)],(pathlist,npath))
-    avg = zeros(eltype(dm.chart.data[:,1,1,:]),size(dm.chart.data[:,1,1,:]))
+    avg = zeros(typeof(dm.chart.data[1]),size(dm.chart.data[:,1,1,:]))
     for i in 1:nsample
-        avg .+= BSON.load("$(mkpath("$(ENV["scriptdir"])/out/$RN/samples"))/sample-$i.bson")[:data]
+        avg .+= BSON.load("$(ENV["scriptdir"])/out/$RN/samples-$(mn[1])-$(mn[2])/sample-$i.bson")[:data]
     end
     avg ./= nsample
     dm.chart.data[:,1,1,:] .= avg
 
     std = zeros(eltype(dm.chart.data[:,1,1,:]),size(dm.chart.data[:,1,1,:]))
     for i in 1:nsample
-        dat = BSON.load("$(ENV["scriptdir"])/out/$RN/samples/sample-$i.bson")[:data]
+        dat = BSON.load("$(ENV["scriptdir"])/out/$RN/samples-$(mn[1])-$(mn[2])/sample-$i.bson")[:data]
         std .+= (dat.-avg).^2
     end
-    rm("$(ENV["scriptdir"])/out/$RN/samples",recursive=true)
+    rm("$(ENV["scriptdir"])/out/$RN/samples-$(mn[1])-$(mn[2])",recursive=true)
     #Package Data
     dict = Dict(
         :chart => dm.chart,
