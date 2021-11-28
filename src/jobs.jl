@@ -16,7 +16,7 @@ function julia_call(RN,name,jit,big,job,JID,scriptdir=ENV["scriptdir"])
         end
     else
         if big===true
-            "      $JULIA_CALL $MACHINEFILE $JPROJECT --sysimage=$(ENV["scriptdir"])/.cache/system/sysimage.dylib $(pwd())/$RN/$name/bin/run-$JID/$JID-$name.jl"
+            "      $JULIA_CALL $MACHINEFILE $JPROJECT --sysimage=$(ENV["cachedir"])/system/sysimage.dylib $(pwd())/$RN/$name/bin/run-$JID/$JID-$name.jl"
         else
             "      $JULIA_CALL $JPROJECT --sysimage=$(ENV["cachedir"])/system/sysimage.dylib -p $big $(pwd())/$RN/$name/bin/run-$JID/$JID-$name.jl"
         end
