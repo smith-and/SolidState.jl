@@ -61,8 +61,8 @@ end
 ######################################
 
 function stat_print(stats)
-    println("time: $(stats.time) \n")
-    println("time: $(stats.bytes/1e9) \n")
+    println("time   (s): $(stats.time)")
+    println("bytes (gb): $(stats.bytes/1e9) \n")
     flush(stdout)
 end
 
