@@ -102,14 +102,15 @@ function models(RN,asds,(idxS,idxL),slurmargs,pray)
         f(RN,"models",true,1,"models",(asd,comargs[idxS:idxL]),slurmargs)
     end
     # open("$(ENV["scriptdir"])/bin/$RN.sh",create=true,write=true) do io
-    open("$(pwd())/$RN/models/$asd-$idxS-$idxL.sh",create=true,write=true) do io
+    open("$(pwd())/$RN/models/models-$idxS-$idxL-$(hash(asds)).sh",create=true,write=true) do io
         write(io,"#!/bin/bash \n")
         map(cmds) do cmd
             write(io,"$cmd \n")
         end
     end
 
-    pray ? Base.run(`bash $(pwd())/$RN/models/$asd-$idxS-$idxL.sh`) : `bash $(pwd())/$RN/models/$asd-$idxS-$idxL.sh`
+    pipe = pipeline(`bash $(pwd())/$RN/models/models-$idxS-$idxL-$(hash(asds)).sh`,stdout="$(pwd())/$RN/$RN-$(hash(jobs)).o")
+    pray ? Base.run(pipe) : pipe
 
 end
 
@@ -152,7 +153,8 @@ function spray(RN::String,asds::AbstractVector,jobs::AbstractDict,pray::Bool;p=1
         end
     end
 
-    pray ? Base.run(pipeline(`bash $(pwd())/$RN/$RN-$(hash(jobs)).sh`,stdout="$(pwd())/$RN/$RN-$(hash(jobs)).o")) : `bash $(pwd())/$RN/$RN-$(hash(jobs)).sh`
+    pipe = pipeline(`bash $(pwd())/$RN/$RN-$(hash(jobs)).sh`,stdout="$(pwd())/$RN/$RN-$(hash(jobs)).o")
+    pray ? Base.run(pipe) : pipe
 
 end
 
