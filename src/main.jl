@@ -253,25 +253,35 @@ end
 function band_average(RN::String, asd::Function, mn::Tuple{Int,Int}, npath::Int, pathlist::Vector{String}, nsample::Int, α, force::Bool=false)
     #Compute Data
     # SolidState.Main.models(asd,[mn],force)
-    asdmn       = BSON.load(   "$(ENV["cachedir"])/$asd/asd-$(mn[1])-$(mn[2]).bson")
-    data = pmap(1:nsample,batch_size=Int(ceil(nsample/nworkers()))) do _
+    data = @sync @distributed for i in 1:nsample
+        asdmn       = BSON.load(   "$(ENV["cachedir"])/$asd/asd-$(mn[1])-$(mn[2]).bson")
         rasd = SolidState.randomize_hopping!(α,asdmn)
         dm = DataMap(()->rasd,BANDS,(:bandstructure,),[(:μ,0.0,0.0,1)],(pathlist,npath))
         stats = @timed dm()
         stat_print(stats)
-        dm.chart.data[:,1,1,:]
+        bson("$(mkpath("$(ENV["scriptdir"])/out/$RN/samples"))/sample-$i.bson",Dict(:data=>dm.chart.data[:,1,1,:]))
+        nothing
     end
-    avg = sum(data)./length(data).|>real
-    std = sqrt.(sum(map(data) do dat
-        (dat.-avg).^2
-    end.|>real)./length(data))
-    dm = DataMap(()->asdmn,BANDS,(:bandstructure,),[(:μ,0.0,0.0,1)],(pathlist,npath))
+
+    dm = DataMap(()->BSON.load(   "$(ENV["cachedir"])/$asd/asd-$(mn[1])-$(mn[2]).bson"),BANDS,(:bandstructure,),[(:μ,0.0,0.0,1)],(pathlist,npath))
+    avg = zeros(eltype(dm.chart.data[:,1,1,:]),size(dm.chart.data[:,1,1,:]))
+    for i in 1:nsample
+        avg .+= BSON.load("$(mkpath("$(ENV["scriptdir"])/out/$RN/samples"))/sample-$i.bson")[:data]
+    end
+    avg ./= nsample
     dm.chart.data[:,1,1,:] .= avg
+
+    std = zeros(eltype(dm.chart.data[:,1,1,:]),size(dm.chart.data[:,1,1,:]))
+    for i in 1:nsample
+        dat = BSON.load("$(ENV["scriptdir"])/out/$RN/samples/sample-$i.bson")[:data]
+        std .+= (dat.-avg).^2
+    end
+    rm("$(ENV["scriptdir"])/out/$RN/samples",recursive=true)
     #Package Data
     dict = Dict(
         :chart => dm.chart,
         :tick_info => get_hsp_ticks(dm),
-        :ribbon => std,
+        :ribbon => sqrt.(std./nsample),
         :θ => SolidState.cθ(mn...)*180/π,
     )
     #Export Data
@@ -440,12 +450,12 @@ function integral(RN::String, asd, mn::Tuple, chart_integral_info::Tuple, pool=d
 end
 
 function integral_average(RN::String, asd::Function, mn::Tuple{Int,Int}, chart_integral_info::Tuple, nsample::Int, α::AbstractFloat, pool::AbstractWorkerPool=default_worker_pool(), force::Bool=false)
-    asdmn       = BSON.load(   "$(ENV["cachedir"])/$asd/asd-$(mn[1])-$(mn[2]).bson")
-    data = map(1:nsample) do _
+    data = pmap(1:nsample, batch_size = Int(ceil(nsample/nworkers()))) do _
+        asdmn       = BSON.load(   "$(ENV["cachedir"])/$asd/asd-$(mn[1])-$(mn[2]).bson")
         rasd = SolidState.randomize_hopping!(α,asdmn)
         dm = DataMap(()->rasd,chart_integral_info[1:end-1]...)
         di = DataIntegral(dm)
-        stats = @timed di(chart_integral_info[end],pool)
+        stats = @timed di(chart_integral_info[end])
         stat_print(stats)
         di.data[1]
     end
@@ -453,7 +463,8 @@ function integral_average(RN::String, asd::Function, mn::Tuple{Int,Int}, chart_i
     std = sqrt.(sum(map(data) do dat
         (dat.-avg).^2
     end)./length(data))
-    dm = DataMap(()->asdmn,chart_integral_info[1:end-1]...)
+    dm = DataMap(()->BSON.load(   "$(ENV["cachedir"])/$asd/asd-$(mn[1])-$(mn[2]).bson"),chart_integral_info[1:end-1]...)
+
     #Package Data
     bson("$(mkpath("$(ENV["scriptdir"])/out/$RN"))/$asd-$(mn[1])-$(mn[2])-$nsample-$α-$(hash(chart_integral_info)).bson", Dict(
         :chart_integral_info => chart_integral_info,
