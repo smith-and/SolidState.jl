@@ -431,7 +431,7 @@ integral_tag(asd,mn,chart_integral_info) = "$asd-$(mn[1])-$(mn[2])-$(hash(chart_
 
 function integral(RN::String, asd, mn::Tuple, chart_integral_info::Tuple, pool=default_worker_pool(), cachedir=ENV["cachedir"], scriptdir=ENV["scriptdir"]; force=false)
 
-    di0 = DataIntegral(asd, mn, chart_integral_info[1:end-1]...)
+    di = DataIntegral(asd, mn, chart_integral_info[1:end-1]...)
     stats = @timed (di0 = di(chart_integral_info[end], pool))
     stat_print(stats)
 
