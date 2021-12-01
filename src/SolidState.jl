@@ -6,9 +6,10 @@ module SolidState
     using Base: Threads
 
     ### Core Methods
+    include("group_theory.jl")
 
-    export KinematicOperators, KinematicDensity
     export HamiltonianOperators, HamiltonianDensity
+    export KinematicOperators, KinematicDensity
     include("lattice.jl")
     include("structures.jl")
     include("kinematic_ops.jl")
@@ -22,10 +23,7 @@ module SolidState
     include("spectral_charts.jl")
     include("optical_charts.jl")
 
-    # Method Bridge to Bashing
     include("main.jl")
-    include("jobs.jl")
 
-    include("group_theory.jl")
 
 end
