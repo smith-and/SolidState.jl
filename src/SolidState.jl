@@ -26,7 +26,6 @@ module SolidState
     include("main.jl")
     include("jobs.jl")
 
-
     include("group_theory.jl")
 
 end
