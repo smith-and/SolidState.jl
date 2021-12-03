@@ -156,7 +156,7 @@ function domain_map(Λ0,asd)
     end
 end
 
-function DataMap( asd0::Function, dtype::(Type{T} where T <: ChartType), indices0, prange, brange; pnames = [:layer], Λ0=:auto, style=:normal)
+function DataMap( asd0::Function, dtype::(Type{T} where T <: ChartType), indices0, prange, brange; pnames = Symbol[], Λ0=:auto, style=:normal)
     asd = asd0()
     Λ = domain_map(Λ0,asd)
     Ω = asd["blv"]|>det

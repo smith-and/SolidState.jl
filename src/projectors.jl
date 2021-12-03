@@ -69,11 +69,15 @@ function product_projector(P1,P2)
 end
 
 function Projector(asd,names::Vector{Symbol})
-    P = Projector(asd,names[1])
-    for (i,name) in enumerate(names[2:end])
-        P = product_projector(P,Projector(asd,name))
+    if length(names)==0
+        Projector(ASD2(),:layer)
+    else
+        P = Projector(asd,names[1])
+        for (i,name) in enumerate(names[2:end])
+            P = product_projector(P,Projector(asd,name))
+        end
+        P
     end
-    P
 end
 
 function conjugate_projectors!(P,hd)
