@@ -1,6 +1,6 @@
 using Distributed
-addprocs(2)
-@everywhere using SolidState, OrderedCollections, LinearAlgebra, BSON, Measures
+    addprocs(2)
+    @everywhere using SolidState, OrderedCollections, LinearAlgebra, BSON, Measures
 
 function precompile_main()
 
