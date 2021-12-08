@@ -93,15 +93,15 @@ function models(asd::Function, comargs::Vector{Tuple{Int,Int}}, force=false, cac
         println("Making $asd Models in $cachedir");flush(stdout)
         for mn ∈ comargs
                 println("making $mn");flush(stdout)
-                stats = @timed if mn ∉ made_models || force
-                        com_asd = SolidState.CommensurateASD(hs_asd,mn);
-                        hd  = TightBindingDensity(com_asd)
-                        bson("$rootdir/asd-$(mn[1])-$(mn[2]).bson",com_asd)
-                        data_export("$rootdir/hd-$(mn[1])-$(mn[2]).bson",hd)
-                else
-                        println("$mn already made");flush(stdout)
-                end
-                stat_print(stats)
+                com_asd = SolidState.CommensurateASD(hs_asd,mn);
+                hd  = TightBindingDensity(deepcopy(com_asd))
+                bson("$rootdir/asd-$(mn[1])-$(mn[2]).bson",com_asd)
+                bson("$rootdir/hd-$(mn[1])-$(mn[2]).bson",Dict(:data=>hd))
+                # stats = @timed if mn ∉ made_models || force
+                # else
+                #         println("$mn already made");flush(stdout)
+                # end
+                # stat_print(stats)
         end
         nothing
 end
@@ -432,17 +432,26 @@ integral_tag(asd,mn,chart_integral_info) = "$asd-$(mn[1])-$(mn[2])-$(hash(chart_
 function integral(RN::String, asd, mn::Tuple, chart_integral_info::Tuple, pool=default_worker_pool(), cachedir=ENV["cachedir"], scriptdir=ENV["scriptdir"]; force=false)
 
     di = DataIntegral(asd, mn, chart_integral_info[1:end-1]...)
-    stats = @timed (di0 = di(chart_integral_info[end], pool))
+
+    stats = if length(pool)==0
+        @timed di(chart_integral_info[end])
+    else
+        stat = @timed di(chart_integral_info[end], pool)
+        di = stat.value
+        stat
+    end
+
     stat_print(stats)
+    flush(stdout)
 
     bson("$(mkpath("$scriptdir/out/$RN"))/$asd-$(mn[1])-$(mn[2])-$(hash(chart_integral_info)).bson", Dict(
         :chart_integral_info => chart_integral_info,
         :mn => mn,
         :θ => SolidState.cθ(mn...)*180/π,
         :asd => asd,
-        :base => getindex.(di0.dm.chart.base,1),
-        :data => di0.data,
-        :ribbon  => di0.err,
+        :base => getindex.(di.dm.chart.base,1),
+        :data => di.data,
+        :ribbon  => di.err,
         :npool => length(pool),
     ))
 
