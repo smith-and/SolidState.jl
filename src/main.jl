@@ -93,15 +93,15 @@ function models(asd::Function, comargs::Vector{Tuple{Int,Int}}, force=false, cac
         println("Making $asd Models in $cachedir");flush(stdout)
         for mn ∈ comargs
                 println("making $mn");flush(stdout)
-                com_asd = SolidState.CommensurateASD(hs_asd,mn);
-                hd  = TightBindingDensity(deepcopy(com_asd))
-                bson("$rootdir/asd-$(mn[1])-$(mn[2]).bson",com_asd)
-                bson("$rootdir/hd-$(mn[1])-$(mn[2]).bson",Dict(:data=>hd))
-                # stats = @timed if mn ∉ made_models || force
-                # else
-                #         println("$mn already made");flush(stdout)
-                # end
-                # stat_print(stats)
+                stats = @timed if mn ∉ made_models || force
+                        com_asd = SolidState.CommensurateASD(hs_asd,mn);
+                        hd  = TightBindingDensity(com_asd)
+                        bson("$rootdir/asd-$(mn[1])-$(mn[2]).bson",com_asd)
+                        data_export("$rootdir/hd-$(mn[1])-$(mn[2]).bson",hd)
+                else
+                        println("$mn already made");flush(stdout)
+                end
+                stat_print(stats)
         end
         nothing
 end
