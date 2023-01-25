@@ -168,13 +168,42 @@ function BC_evaluation(tc::DataChart, P::Projector, K0::KinematicDensity, k::Abs
     tc.data .= 0.0
     R   = Complex(0.0)
     for m ∈ 1:dim_ℋ
-        for (ib,(ω,)) ∈ enumerate(tc.base)
+        for (ib,(n,)) ∈ enumerate(tc.base)
             for (ip, p) ∈ enumerate(tc.priors)
-                for (ii,((a,b),n)) ∈ enumerate(tc.indices)
-                    if m!=n
-                        @fastmath mn = m + (n-1)*dim_ℋ
+                for (ii,(a,b)) ∈ enumerate(tc.indices)
+                    @fastmath mn = m + (Int(n)-1)*dim_ℋ
+                    if m!=n && abs(K.dω[mn]) > 1e-6
+                        @fastmath nm = Int(n) + (m-1)*dim_ℋ
                         @fastmath idx = ii + ((ip-1) + (ib-1)*tc.l_p)*tc.l_i
-                        @fastmath @inbounds tc.data[idx] += im*(transpose(H.v[a])[mn]*H.v[b][mn])*(1.0/(K.dω[mn]^2))
+                        @fastmath @inbounds tc.data[idx] += K.re[a][nm]*K.re[b][mn] - K.re[b][nm]*K.re[a][mn]
+                    end
+                end
+            end
+        end
+    end
+    copy(tc.data)
+end
+
+export BCFT
+
+abstract type BCFT <: SpectralChart end
+function BCFT_evaluation(tc::DataChart, P::Projector, K0::KinematicDensity, k::AbstractVector , dim_ℋ::Int64)
+    evaluate_km(K0,k)
+    K = K0.k_m
+    H = K0.hd
+    tc.data .= 0.0
+    R   = Complex(0.0)
+    for m ∈ 1:dim_ℋ
+        for n ∈ 1:dim_ℋ
+            for (ib,(ω,)) ∈ enumerate(tc.base)
+                for (ip, p) ∈ enumerate(tc.priors)
+                    for (ii,(a,b)) ∈ enumerate(tc.indices)
+                        @fastmath mn = m + (Int(n)-1)*dim_ℋ
+                        if m!=n && abs(K.dω[mn]) > 1e-6
+                            @fastmath nm = Int(n) + (m-1)*dim_ℋ
+                            @fastmath idx = ii + ((ip-1) + (ib-1)*tc.l_p)*tc.l_i
+                            @fastmath @inbounds tc.data[idx] += K.df[ip][n,n]*(K.re[a][nm]*K.re[b][mn] - K.re[b][nm]*K.re[a][mn])
+                        end
                     end
                 end
             end

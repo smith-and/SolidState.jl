@@ -255,7 +255,7 @@ function band_average(RN::String, asd::Function, mn::Tuple{Int,Int}, npath::Int,
     # SolidState.Main.models(asd,[mn],force)
     data = @sync @distributed for i in 1:nsample
         asdmn       = BSON.load(   "$(ENV["cachedir"])/$asd/asd-$(mn[1])-$(mn[2]).bson")
-        rasd = SolidState.randomize_hopping!(α,asdmn)
+        rasd = SolidState.randomize_interlayer_hopping!(α,asdmn)
         dm = DataMap(()->rasd,BANDS,(:bandstructure,),[(:μ,0.0,0.0,1)],(pathlist,npath))
         stats = @timed dm()
         stat_print(stats)
@@ -328,7 +328,7 @@ function hd_section_1d(asd::Dict{String,Any}, hd::HamiltonianDensity, Npath=100,
             xtickfonthalign =:center,
             xticks         = (tick_odimeters[1]./max(odimeter[1]...), pathlist),
             minorgrid      = false,
-            apsectratio    = 1/4,
+            # apsectratio    = 1/4,
             xguidefontsize = 16,
             title_pos       = :right,
             titlefontvalign = :bottom,
@@ -346,22 +346,22 @@ function hd_section_1d(asd::Dict{String,Any}, hd::HamiltonianDensity, Npath=100,
     )
 end
 
-hds1d_tag(asd,mn,Npath,pathlist) = "bands-$asd-$(mn[1])-$(mn[2])-$Npath-$(hash(pathlist))"
-function hd_section_1d(RN, asd, mn, Npath = 300, pathlist=["K1","Γ","M1","K'1"], scriptdir=ENV["scriptdir"], cachedirr=ENV["cachedir"], args...;force = false)
+hds1d_tag(asd,mn,Npath,pathlist) = "bands-$(mn[1])-$(mn[2])-$(hash((Npath,pathlist)))"
+function hd_section_1d(RN, asd, mn, Npath = 300, pathlist=["K1","Γ","M1","K'1"], args...;force = false)
     #Compute Data
-    ASD       = BSON.load(   "$cachedirr/$asd/asd-$(mn[1])-$(mn[2]).bson")
-    hd        = data_import( "$cachedirr/$asd/hd-$(mn[1])-$(mn[2]).bson")
+    ASD       = BSON.load(   "$(ENV["scriptdir"])/cache/$asd/asd-$(mn[1])-$(mn[2]).bson")
+    hd        = data_import( "$(ENV["scriptdir"])/cache/$asd/hd-$(mn[1])-$(mn[2]).bson")
     dict      = hd_section_1d(ASD,hd,Npath,pathlist)
 
     #Export Data
-    bson("$(mkpath("$scriptdir/out/$RN/"))/$(hds1d_tag(asd,mn,Npath,pathlist)).bson",
+    bson("$(mkpath("$(ENV["scriptdir"])/out/$RN/"))/$(hds1d_tag(asd,mn,Npath,pathlist)).bson",
         Dict(
             :dict  => dict,
             :tag   => hds1d_tag(asd,mn,Npath,pathlist),
             :angle => SolidState.cθ(mn...)*180/π
         )
     )
-    "$(mkpath("$scriptdir/out/$RN/"))/$(hds1d_tag(asd,mn,Npath,pathlist)).bson"
+    "$(mkpath("$(ENV["scriptdir"])/out/$RN/"))/$(hds1d_tag(asd,mn,Npath,pathlist)).bson"
 end
 
 ######################################
@@ -461,7 +461,7 @@ end
 function integral_average(RN::String, asd::Function, mn::Tuple{Int,Int}, chart_integral_info::Tuple, nsample::Int, α::AbstractFloat, pool::AbstractWorkerPool=default_worker_pool(), force::Bool=false)
     data = pmap(1:nsample, batch_size = Int(ceil(nsample/nworkers()))) do _
         asdmn       = BSON.load(   "$(ENV["cachedir"])/$asd/asd-$(mn[1])-$(mn[2]).bson")
-        rasd = SolidState.randomize_hopping!(α,asdmn)
+        rasd = SolidState.randomize_interlayer_hopping!(α,asdmn)
         dm = DataMap(()->rasd,chart_integral_info[1:end-1]...)
         di = DataIntegral(dm)
         stats = @timed di(chart_integral_info[end])

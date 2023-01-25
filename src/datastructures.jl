@@ -125,6 +125,10 @@ function input_process(asd,hd,indices,prange,brange)
         base = bandwidth_range(asd,hd,brange[3])
     elseif indices[1]==:bands||indices[1]==:bandstructure
         base = SolidState.Main.path_points(asd,brange...)
+    elseif brange[1] == :dim
+        base = collect(1:size(hd.h_ops.h,1))
+    elseif brange[1] == :one
+        base = collect(1:1)
     else
         base = range_scope(brange)
     end
@@ -178,6 +182,8 @@ function DataMap( asd0::Function, dtype::(Type{T} where T <: ChartType), indices
         projectors = pnames,
         style = style,
     )
+
+    println(inputs)
 
     DataMap(dim_h,Ω,Λ,K,chart,P,inputs)
 end
@@ -257,9 +263,9 @@ function DataMap(; asd, mn, dtype::(Type{T} where T <: ChartType), indices,prior
     inputs = (
         asd    = asd,
         mn     = mn,
-        indices= indices0,
-        priors = prange,
-        base   = brange,
+        indices= indices,
+        priors = priors,
+        base   = base,
         Λ      = Λ0,
         projectors = pnames,
         style = style,

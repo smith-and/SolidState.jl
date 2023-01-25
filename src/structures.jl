@@ -2,6 +2,23 @@
 #### Parameter Manipulation
 ##########################################
 
+function randomize_interlayer_hopping!(α,asd)
+    asd["scales"] = map(asd["scales"]|>keys,asd["scales"]|>values) do key,val
+        if key[1][2]!=key[2][2]
+            key=>(
+                as = val.as,
+                ds = val.ds,
+                vs = val.vs.*(1.0.+α.*randn(size(val.vs))),
+                es = val.es,
+            )
+        else
+            key=>val
+        end
+    end|>Dict
+
+    asd
+end
+
 function randomize_hopping!(α,asd)
     asd["scales"] = map(asd["scales"]|>keys,asd["scales"]|>values) do key,val
         key=>(
@@ -282,6 +299,230 @@ function Control4LMz()
     )
 end
 
+##########################################
+#### Boron Nitride System
+##########################################
+
+function E_Scales_layered0((l1,l2), a, c, δBB, δNN, δNB, ϵBB, ϵNN, vppσ, vppπBB, vppπNN, vppπNB)
+    vσσ = 0
+    Dict(
+        ("N$l1", "N$l2") => (
+            as = [0 0 0 0; 0 a/sqrt(3) 0 0; 0 0 c 0; 0 0 0 a/sqrt(3)],
+            ds = [δNN δNN δNN δNN; δNN δNN δNN δNN; δNN δNN δNN δNN; δNN δNN δNN δNN],
+            vs = [vσσ 0 0 0; 0 vppπNN 0 0; 0 0 vppσ 0; 0 0 0 vppπNN],
+            es = [ϵNN 0 0 0; 0 ϵNN 0 0; 0 0 ϵNN 0; 0 0 0 ϵNN],
+        ),
+        ("B$l1", "B$l2") => (
+            as = [0 0 0 0; 0 a/sqrt(3) 0 0; 0 0 c 0; 0 0 0 a/sqrt(3)],
+            ds = [δBB δBB δBB δBB; δBB δBB δBB δBB; δBB δBB δBB δBB; δBB δBB δBB δBB],
+            vs = [vσσ 0 0 0; 0 vppπBB 0 0; 0 0 vppσ 0; 0 0 0 vppπBB],
+            es = [ϵBB 0 0 0; 0 ϵBB 0 0; 0 0 ϵBB 0; 0 0 0 ϵBB],
+        ),
+        ("N$l1", "B$l2") => (
+            as = [0 0 0 0; 0 a/sqrt(3) 0 0; 0 0 c 0; 0 0 0 a/sqrt(3)],
+            ds = [δNB δNB δNB δNB; δNB δNB δNB δNB; δNB δNB δNB δNB; δNB δNB δNB δNB],
+            vs = [vσσ 0 0 0; 0 vppπNB 0 0; 0 0 vppσ 0; 0 0 0 vppπNB],
+            es = [0 0 0 0; 0 0 0 0; 0 0 0 0; 0 0 0 0],
+        ),
+        ("B$l1", "N$l2") => (
+            as = [0 0 0 0; 0 a/sqrt(3) 0 0; 0 0 c 0; 0 0 0 a/sqrt(3)],
+            ds = [δNB δNB δNB δNB; δNB δNB δNB δNB; δNB δNB δNB δNB; δNB δNB δNB δNB],
+            vs = [vσσ 0 0 0; 0 vppπNB 0 0; 0 0 vppσ 0; 0 0 0 vppπNB],
+            es = [0 0 0 0; 0 0 0 0; 0 0 0 0; 0 0 0 0],
+        ),
+    )
+end
+
+function E_Scales_layered(a, c, δBB, δNN, δNB, ϵBB, ϵNN, vppσ, vppπBB, vppπNN, vppπNB)
+    merge(
+        E_Scales_layered0((1,1), a, c, δBB, δNN, δNB, ϵBB, ϵNN, vppσ, vppπBB, vppπNN, vppπNB),
+        E_Scales_layered0((2,2), a, c, δBB, δNN, δNB, ϵBB, ϵNN, vppσ, vppπBB, vppπNN, vppπNB),
+        E_Scales_layered0((1,2), a, c, δBB, δNN, δNB, ϵBB, ϵNN, vppσ, vppπBB, vppπNN, vppπNB),
+        E_Scales_layered0((2,1), a, c, δBB, δNN, δNB, ϵBB, ϵNN, vppσ, vppπBB, vppπNN, vppπNB),
+    )
+end
+
+function E_Scales_layered_hofstader(a, c, δBB, δNN, δNB, ϵBB, ϵNN, vppσ, vppπBB, vppπNN, vppπNB)
+    merge(
+        E_Scales_layered0((1,1), a, c, δBB, δNN, δNB, ϵBB, ϵNN, 0, 0, 0, 0),
+        E_Scales_layered0((2,2), a, c, δBB, δNN, δNB, ϵBB, ϵNN, 0, 0, 0, 0),
+        E_Scales_layered0((1,2), a, c, δBB, δNN, δNB, ϵBB, ϵNN, vppσ, vppπBB, vppπNN, vppπNB),
+        E_Scales_layered0((2,1), a, c, δBB, δNN, δNB, ϵBB, ϵNN, vppσ, vppπBB, vppπNN, vppπNB),
+    )
+end
+
+function wide_gap_1_wha()
+    a = 0.2512
+    c = 0.334
+    δBB = 0.022
+    δNN = 0.022
+    δNB = 0.0475
+    vppπBB = 0.7
+    vppπNN = 0.15
+    vppπNB = 2.3
+    vppσ = 0.2
+    ϵBB = 3.125
+    ϵNN = -3.125
+    Dict(
+        "lbase" => 10,
+        "cutoff" => 20 * a / sqrt(3),
+        "regulator" => "exp",
+        "scales" => E_Scales_layered0((1,1),a, c, δBB, δNN, δNB, ϵBB, ϵNN, vppσ, vppπBB, vppπNN, vppπNB),
+    )
+end
+
+function wide_gap_2_wha()
+    a = 0.2512
+    c = 0.334
+    δBB = 0.0475
+    δNN = 0.0475
+    δNB = 0.0475
+    vppπBB = 0.7
+    vppπNN = 0.15
+    vppπNB = 2.3
+    vppσ = 0.2
+    ϵBB = 3.125
+    ϵNN = -3.125
+    Dict(
+        "lbase" => 10,
+        "cutoff" => 20 * a / sqrt(3),
+        "regulator" => "exp",
+        "scales" => E_Scales_layered0((1,1),a, c, δBB, δNN, δNB, ϵBB, ϵNN, vppσ, vppπBB, vppπNN, vppπNB),
+    )
+end
+
+
+function wide_gap_layered_wha()
+    a = 0.2512
+    c = 0.334
+    δBB = 0.022
+    δNN = 0.022
+    δNB = 0.0475
+    vppπBB = 0.7
+    vppπNN = 0.15
+    vppπNB = 2.3
+    vppσ = 0.2
+    ϵBB = 3.125
+    ϵNN = -3.125
+    Dict(
+        "lbase" => 10,
+        "cutoff" => 20 * a / sqrt(3),
+        "regulator" => "exp",
+        "scales" => E_Scales_layered(a, c, δBB, δNN, δNB, ϵBB, ϵNN, vppσ, vppπBB, vppπNN, vppπNB),
+    )
+end
+
+function small_gap_layered_wha()
+    a = 0.2512
+    c = 0.334
+    δBB = 0.022
+    δNN = 0.022
+    δNB = 0.0475
+    vppπBB = 0.7
+    vppπNN = 0.15
+    vppπNB = 2.3
+    vppσ = 0.2
+    ϵBB = 0.5
+    ϵNN = -0.5
+    Dict(
+        "lbase" => 10,
+        "cutoff" => 20 * a / sqrt(3),
+        "regulator" => "exp",
+        "scales" => E_Scales_layered(a, c, δBB, δNN, δNB, ϵBB, ϵNN, vppσ, vppπBB, vppπNN, vppπNB),
+    )
+end
+
+function layered_hofstater_wha()
+    a = 0.2512
+    c = 0.334
+    δBB = 0.022
+    δNN = 0.022
+    δNB = 0.0475
+    vppπBB = 0.7
+    vppπNN = 0.15
+    vppπNB = 2.3
+    vppσ = 0.2
+    ϵBB = 0.5
+    ϵNN = -0.5
+    Dict(
+        "lbase" => 10,
+        "cutoff" => 20 * a / sqrt(3),
+        "regulator" => "exp",
+        "scales" => E_Scales_layered_hofstader(a, c, δBB, δNN, δNB, ϵBB, ϵNN, vppσ, vppπBB, vppπNN, vppπNB),
+    )
+end
+
+
+export ASD1L
+function ASD1L()
+    a = 0.2512
+    c = 0.334
+    asd = Dict(
+        "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 2*c],
+        "sk" => Dict("Atom" => 1, "Layer" => 2,"Pos" => 3,"Spin" => 4,"Orbital" => 5,"Glyph" => 6,"Color" => 7),
+        "sites" => [
+            ("B1", 1, [0.0, a / sqrt(3), -c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N1", 1, [0.0, -a / sqrt(3), -c / 2],(0 // 1, [1]), (1, [2]), :circle, :orange),
+        ],
+        "filling" => 0.5,
+    )
+    merge(asd, wide_gap_1_wha())
+end
+
+export ASD2L
+function ASD2L()
+    a = 0.2512
+    c = 0.334
+    asd = Dict(
+        "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 2*c],
+        "sk" => Dict("Atom" => 1, "Layer" => 2,"Pos" => 3,"Spin" => 4,"Orbital" => 5,"Glyph" => 6,"Color" => 7),
+        "sites" => [
+            ("B1", 1, [0.0, a / sqrt(3), -c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N1", 1, [0.0, -a / sqrt(3), -c / 2],(0 // 1, [1]), (1, [2]), :circle, :orange),
+            ("B2", 2, [0.0, a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N2", 2, [0.0, -a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :orange),
+        ],
+        "filling" => 0.5,
+    )
+    merge(asd, wide_gap_layered_wha())
+end
+
+export SGASD2L
+function SGASD2L()
+    a = 0.2512
+    c = 0.334
+    asd = Dict(
+        "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 2*c],
+        "sk" => Dict("Atom" => 1, "Layer" => 2,"Pos" => 3,"Spin" => 4,"Orbital" => 5,"Glyph" => 6,"Color" => 7),
+        "sites" => [
+            ("B1", 1, [0.0, a / sqrt(3), -c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N1", 1, [0.0, -a / sqrt(3), -c / 2],(0 // 1, [1]), (1, [2]), :circle, :orange),
+            ("B2", 2, [0.0, a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N2", 2, [0.0, -a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :orange),
+        ],
+        "filling" => 0.5,
+    )
+    merge(asd, small_gap_layered_wha())
+end
+
+export ASD2HLH
+function ASD2LH()
+    a = 0.2512
+    c = 0.334
+    asd = Dict(
+        "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 2*c],
+        "sk" => Dict("Atom" => 1, "Layer" => 2,"Pos" => 3,"Spin" => 4,"Orbital" => 5,"Glyph" => 6,"Color" => 7),
+        "sites" => [
+            ("B1", 1, [0.0, a / sqrt(3), -c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N1", 1, [0.0, -a / sqrt(3), -c / 2],(0 // 1, [1]), (1, [2]), :circle, :orange),
+            ("B2", 2, [0.0, a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N2", 2, [0.0, -a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :orange),
+        ],
+        "filling" => 0.5,
+    )
+    merge(asd, layered_hofstater_wha())
+end
+
 
 ##########################################
 #### Boron Nitride System
@@ -293,18 +534,8 @@ function E_Scales(a, c, δBB, δNN, δNB, ϵBB, ϵNN, vppσ, vppπBB, vppπNN, v
         ("N", "N") => (
             as = [0 0 0 0; 0 a/sqrt(3) 0 0; 0 0 c 0; 0 0 0 a/sqrt(3)],
             ds = [δNN δNN δNN δNN; δNN δNN δNN δNN; δNN δNN δNN δNN; δNN δNN δNN δNN],
-            vs = [
-                vσσ 0 0 0
-                0 vppπNN 0 0
-                0 0 vppσ 0
-                0 0 0 vppπNN
-            ],
-            es = [
-                ϵNN 0 0 0
-                0 ϵNN 0 0
-                0 0 ϵNN 0
-                0 0 0 ϵNN
-            ],
+            vs = [vσσ 0 0 0; 0 vppπNN 0 0; 0 0 vppσ 0; 0 0 0 vppπNN],
+            es = [ϵNN 0 0 0; 0 ϵNN 0 0; 0 0 ϵNN 0; 0 0 0 ϵNN],
         ),
         ("B", "B") => (
             as = [0 0 0 0; 0 a/sqrt(3) 0 0; 0 0 c 0; 0 0 0 a/sqrt(3)],
@@ -327,11 +558,51 @@ function E_Scales(a, c, δBB, δNN, δNB, ϵBB, ϵNN, vppσ, vppπBB, vppπNN, v
     )
 end
 
+function equal_decay_wha()
+    a = 0.2512
+    c = 0.334
+    δBB = 0.0475
+    δNN = 0.0475
+    δNB = 0.0475
+    vppπBB = 0.7
+    vppπNN = 0.15
+    vppπNB = 2.3
+    vppσ = 0.2
+    ϵBB = 3.125
+    ϵNN = -3.125
+    Dict(
+        "lbase" => 10,
+        "cutoff" => 20 * a / sqrt(3),
+        "regulator" => "exp",
+        "scales" => E_Scales(a, c, δBB, δNN, δNB, ϵBB, ϵNN, vppσ, vppπBB, vppπNN, vppπNB),
+    )
+end
+
 function wide_gap_wha()
     a = 0.2512
     c = 0.334
     δBB = 0.022
     δNN = 0.022
+    δNB = 0.0475
+    vppπBB = 0.7
+    vppπNN = 0.15
+    vppπNB = 2.3
+    vppσ = 0.2
+    ϵBB = 3.125
+    ϵNN = -3.125
+    Dict(
+        "lbase" => 10,
+        "cutoff" => 20 * a / sqrt(3),
+        "regulator" => "exp",
+        "scales" => E_Scales(a, c, δBB, δNN, δNB, ϵBB, ϵNN, vppσ, vppπBB, vppπNN, vppπNB),
+    )
+end
+
+function wide_gap_wha_2()
+    a = 0.2512
+    c = 0.334
+    δBB = 0.0475
+    δNN = 0.0475
     δNB = 0.0475
     vppπBB = 0.7
     vppπNN = 0.15
@@ -409,6 +680,24 @@ function ASD2CS()
     merge(asd, wide_gap_wha())
 end
 
+export ASD20
+function ASD20()
+    a = 0.2512
+    c = 0.334
+    asd = Dict(
+        "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 2*c],
+        "sk" => Dict("Atom" => 1, "Layer" => 2,"Pos" => 3,"Spin" => 4,"Orbital" => 5,"Glyph" => 6,"Color" => 7),
+        "sites" => [
+            ("B", 1, [0.0, a / sqrt(3), -c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 1, [0.0, -a / sqrt(3), -c / 2],(0 // 1, [1]), (1, [2]), :circle, :orange),
+            ("B", 2, [0.0, a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 2, [0.0, -a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :orange),
+        ],
+        "filling" => 0.5,
+    )
+    merge(asd, equal_decay_wha())
+end
+
 export ASD2
 function ASD2()
     a = 0.2512
@@ -425,6 +714,24 @@ function ASD2()
         "filling" => 0.5,
     )
     merge(asd, wide_gap_wha())
+end
+
+export ASD2b
+function ASD2b()
+    a = 0.2512
+    c = 0.334
+    asd = Dict(
+        "blv" => [a 0 0; a/2 sqrt(3)/2*a 0; 0 0 2*c],
+        "sk" => Dict("Atom" => 1, "Layer" => 2,"Pos" => 3,"Spin" => 4,"Orbital" => 5,"Glyph" => 6,"Color" => 7),
+        "sites" => [
+            ("B", 1, [0.0, a / sqrt(3), -c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 1, [0.0, -a / sqrt(3), -c / 2],(0 // 1, [1]), (1, [2]), :circle, :orange),
+            ("B", 2, [0.0, a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :blue),
+            ("N", 2, [0.0, -a / sqrt(3), c / 2], (0 // 1, [1]), (1, [2]), :circle, :orange),
+        ],
+        "filling" => 0.5,
+    )
+    merge(asd, wide_gap_wha_2())
 end
 
 export SGASD2

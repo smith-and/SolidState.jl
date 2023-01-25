@@ -72,4 +72,4 @@ function vertical_bonds(asd)
 
     btz
 end
-,
+

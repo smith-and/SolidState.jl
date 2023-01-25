@@ -158,7 +158,7 @@ end
 
 @inline function action_Ad_H(U::AbstractArray{Complex{F},2},M::A where A <: Union{AbstractArray{SharedArray{Complex{F},2}},AbstractArray{Array{Complex{F},2}}},Y::AbstractArray{Complex{F},2}, i1::Int64)::Nothing where F <: AbstractFloat
     @fastmath @inbounds mul!(Y,Hermitian(M[i1]),U,true,false);
-    @fastmath @inbounds mul!(M[i1],(U)',Y, true, false)
+    @fastmath @inbounds mul!(M[i1],U',Y, true, false)
     nothing
 end
 
