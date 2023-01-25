@@ -1,24 +1,26 @@
-using Documenter, Literate, SolidState, Hop
+using SolidState
+using Documenter
 
-# Make Documentation Source
-# Literate.markdown("$(@__DIR__)/src/dev.jl","$(@__DIR__)/src")
+DocMeta.setdocmeta!(SolidState, :DocTestSetup, :(using SolidState); recursive=true)
 
-# Make the Documentation Pages
-println("starting with docs!")
-DocMeta.setdocmeta!(SolidState, :DocTestSetup, :(using Documenter); recursive=true)
 makedocs(;
     modules=[SolidState],
-    authors="Andrew Smith <asmith.nic@gmail.com> and contributors",
-    repo="https://gitlab.com/solidstateapps/SolidState",
-    sitename="SolidState",
+    authors="Andrew Smith",
+    repo="https://github.com/smith-and/SolidState.jl/blob/{commit}{path}#{line}",
+    sitename="SolidState.jl",
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https://solidstateapps.gitlab.io/SolidState",
+        canonical="https://smith-and.github.io/SolidState.jl",
+        edit_link="main",
         assets=String[],
     ),
-    pages = [
-        "Homepage" => "index.md",
-        # "ReferenceCheck" => "dev.md"
+    pages=[
+        "Home" => "index.md",
     ],
 )
-println("done with docs!")
+
+
+deploydocs(;
+    repo="github.com/smith-and/SolidState.jl",
+    # devbranch="main",
+)

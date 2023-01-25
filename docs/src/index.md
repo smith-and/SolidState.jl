@@ -1,23 +1,15 @@
-# SolidState Documentation
-
-This documentation explains the usage and underlying algorithms invovled in the SolidState package. You know?
-
 ```@meta
 CurrentModule = SolidState
 ```
 
-## Contents
+# SolidState
 
-```@contents
+Documentation for [SolidState](https://github.com/smith-and/SolidState.jl).
+
+```@index
 ```
-
-## API
 
 ```@autodocs
 Modules = [SolidState]
 ```
 
-## Index
-
-```@index
-```
