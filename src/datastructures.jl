@@ -250,11 +250,12 @@ end
 Uses cached model
 """
 function DataMap(; asd, mn, dtype::(Type{T} where T <: ChartType), indices,priors,base, cachedir=ENV["cachedir"],  pnames = [:layer], Λ0=:auto, style=:normal, kargs...)
+    println(base);flush(stdout)
     asd0 = BSON.load("$cachedir/$asd/asd-$(mn[1])-$(mn[2]).bson")
     hd  = data_import("$cachedir/$asd/hd-$(mn[1])-$(mn[2]).bson")
     Λ = domain_map(Λ0,asd0)
     Ω = asd0["blv"]|>det
-    (indices0,prange,brange) = input_process(asd0,hd,indices,priors,base)
+    (indices0,prange,brange) = input_process(asd0,hd,indices,priors,deepcopy(base))
     dim_h   = size(hd.h_ops.h,1)
     K       = KinematicDensity(hd,prange)
     chart = DataChart(dtype,indices0,prange,brange, Complex{Float64};style=style)
@@ -270,6 +271,8 @@ function DataMap(; asd, mn, dtype::(Type{T} where T <: ChartType), indices,prior
         projectors = pnames,
         style = style,
     )
+
+    println(inputs.base);flush(stdout)
 
     DataMap(dim_h,Ω,Λ,K,chart,P,inputs)
 end
