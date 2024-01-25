@@ -155,6 +155,8 @@ function domain_map(Λ0,asd)
         return (asd|>ASDGeometry)["dxtal"][1][1:3,1:2]
     elseif Λ0 == :box
         return norm((asd|>ASDGeometry)["dxtal"][1][1:3,1])*[1.0 0.0 ; 0.0 1.0 ; 0.0 0.0]
+    elseif Λ0 == :identity
+        return [1.0 0.0 ; 0.0 1.0 ; 0.0 0.0]
     else
         return Λ0
     end
@@ -250,12 +252,11 @@ end
 Uses cached model
 """
 function DataMap(; asd, mn, dtype::(Type{T} where T <: ChartType), indices,priors,base, cachedir=ENV["cachedir"],  pnames = [:layer], Λ0=:auto, style=:normal, kargs...)
-    println(base);flush(stdout)
     asd0 = BSON.load("$cachedir/$asd/asd-$(mn[1])-$(mn[2]).bson")
     hd  = data_import("$cachedir/$asd/hd-$(mn[1])-$(mn[2]).bson")
     Λ = domain_map(Λ0,asd0)
     Ω = asd0["blv"]|>det
-    (indices0,prange,brange) = input_process(asd0,hd,indices,priors,deepcopy(base))
+    (indices0,prange,brange) = input_process(asd0,hd,indices,priors,base)
     dim_h   = size(hd.h_ops.h,1)
     K       = KinematicDensity(hd,prange)
     chart = DataChart(dtype,indices0,prange,brange, Complex{Float64};style=style)
@@ -271,8 +272,6 @@ function DataMap(; asd, mn, dtype::(Type{T} where T <: ChartType), indices,prior
         projectors = pnames,
         style = style,
     )
-
-    println(inputs.base);flush(stdout)
 
     DataMap(dim_h,Ω,Λ,K,chart,P,inputs)
 end
@@ -596,7 +595,11 @@ function DataSection(dm::DataMap, dom::Vector{Tuple{Symbol,N,N,Int64}} where N <
     chart = dm.chart
     priors  = prior_base_combine(chart.priors,chart.base)
     dombase = range_scope(dom)
-    DataSection(chart.l_i*chart.l_p*chart.l_b, dm, DataChart(dm.chart.name,chart.indices,priors,dombase,eltype(chart.data)))
+
+    base = map(dombase) do b
+        [b...]
+    end
+    DataSection(chart.l_i*chart.l_p*chart.l_b, dm, DataChart(dm.chart.name,chart.indices,priors,base,eltype(chart.data)))
 end
 
 """
@@ -616,8 +619,8 @@ end
 
 Dictionary based constructor
 """
-function DataSection(;offset, N, kargs...)
-    dom = [(:n1,-0.5+offset[1],0.5+offset[1],N),(:n2,-0.5+offset[2],0.5+offset[2],N)]
+function DataSection(;offset, N, Nmax=1, kargs...)
+    dom = [(:n1,-Nmax+offset[1],Nmax+offset[1],N),(:n2,-Nmax+offset[2],Nmax+offset[2],N)]
     dm = DataMap(; kargs...)
 
     DataSection(dm,dom)

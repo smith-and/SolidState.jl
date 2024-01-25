@@ -85,23 +85,33 @@ function models(asd::Symbol, comargs::Vector{Tuple{Int,Int}}, force=false, cache
     models(eval(quote $asd end), comargs, force, cachedir, kargs...)
 end
 
-function models(asd::Function, comargs::Vector{Tuple{Int,Int}}, force=false, cachedir=ENV["cachedir"], kargs...)
+function models(asd::Function, comargs::Vector{Tuple{Int,Int}}; force=false, cachedir=ENV["cachedir"], printQ = false, kargs...)
         rootdir = isdir("$cachedir/$asd") ? "$cachedir/$asd" : mkpath("$cachedir/$asd");
         hs_asd    = asd()
         made_models = model_id.(readdir(rootdir))
-        println("");flush(stdout)
-        println("Making $asd Models in $cachedir");flush(stdout)
+        if printQ
+            println("");flush(stdout)
+            println("Making $asd Models in $cachedir");flush(stdout)
+        end 
         for mn ∈ comargs
-                println("making $mn");flush(stdout)
-                stats = @timed if mn ∉ made_models || force
-                        com_asd = SolidState.CommensurateASD(hs_asd,mn);
-                        hd  = TightBindingDensity(com_asd)
-                        bson("$rootdir/asd-$(mn[1])-$(mn[2]).bson",com_asd)
-                        data_export("$rootdir/hd-$(mn[1])-$(mn[2]).bson",hd)
-                else
-                        println("$mn already made");flush(stdout)
+            if mn ∉ made_models || force
+                stats = @timed begin 
+                    if printQ
+                        println("making $mn");flush(stdout)
+                    end
+                    com_asd = SolidState.CommensurateASD(hs_asd,mn);
+                    hd  = TightBindingDensity(com_asd)
+                    bson("$rootdir/asd-$(mn[1])-$(mn[2]).bson",com_asd)
+                    data_export("$rootdir/hd-$(mn[1])-$(mn[2]).bson",hd)
+                end 
+                if printQ
+                    stat_print(stats)
                 end
-                stat_print(stats)
+            else
+                if printQ
+                    println("Model $asd $mn already exists");flush(stdout)
+                end
+            end
         end
         nothing
 end
@@ -335,11 +345,12 @@ function hd_section_1d(asd::Dict{String,Any}, hd::HamiltonianDensity, Npath=100,
         );
 
     Dict(
-        :odimeter => odimeter./max(odimeter[1]...),
-        :Es       => Es',
         :args     => args,
-        :ks       => tbks,
         :path     => pathlist,
+        :ks       => tbks,
+        :odimeter => odimeter./max(odimeter[1]...),
+        :corner_indices => corner_indices,
+        :Es       => Es',
         :Evs      => Evs,
         # :Vs       => Vs,
         # :As       => As,
@@ -348,20 +359,104 @@ end
 
 hds1d_tag(asd,mn,Npath,pathlist) = "bands-$(mn[1])-$(mn[2])-$(hash((Npath,pathlist)))"
 function hd_section_1d(RN, asd, mn, Npath = 300, pathlist=["K1","Γ","M1","K'1"], args...;force = false)
-    #Compute Data
-    ASD       = BSON.load(   "$(ENV["scriptdir"])/cache/$asd/asd-$(mn[1])-$(mn[2]).bson")
-    hd        = data_import( "$(ENV["scriptdir"])/cache/$asd/hd-$(mn[1])-$(mn[2]).bson")
-    dict      = hd_section_1d(ASD,hd,Npath,pathlist)
+    if (!isfile("$(mkpath("$(ENV["scriptdir"])/out/$RN/$asd"))/$(hds1d_tag(asd,mn,Npath,pathlist)).bson"))||force
+        #Compute Data
+        ASD       = BSON.load(   "$(ENV["scriptdir"])/cache/$asd/asd-$(mn[1])-$(mn[2]).bson")
+        hd        = data_import( "$(ENV["scriptdir"])/cache/$asd/hd-$(mn[1])-$(mn[2]).bson")
+        dict      = hd_section_1d(ASD,hd,Npath,pathlist)
+        #Export Data
+        bson("$(mkpath("$(ENV["scriptdir"])/out/$RN/$asd"))/$(hds1d_tag(asd,mn,Npath,pathlist)).bson",
+            Dict(
+                :dict  => dict,
+                :tag   => hds1d_tag(asd,mn,Npath,pathlist),
+                :angle => SolidState.cθ(mn...)*180/π
+            )
+        )
+    end
+    "$(mkpath("$(ENV["scriptdir"])/out/$RN/$asd"))/$(hds1d_tag(asd,mn,Npath,pathlist)).bson"
+end
 
-    #Export Data
-    bson("$(mkpath("$(ENV["scriptdir"])/out/$RN/"))/$(hds1d_tag(asd,mn,Npath,pathlist)).bson",
-        Dict(
+function hd_section(RN, asd, mn, Npath = 300, pathlist=["K1","Γ","M1","K'1"], args...;force = false,chunk=false)
+    path = "$(mkpath("$(ENV["scriptdir"])/out/$RN/$asd"))/$(hds1d_tag(asd,mn,Npath,pathlist)).bson"
+    if (!chunk)&&((!isfile(path))||force)
+        hd_section_1d(RN,asd,mn,Npath,pathlist,args...;force=force)
+    elseif chunk&&((!isfile(path))||force)
+        ks, corner_indices, odimeter = path_points(asd(),[pathlist],Npath)
+        Npath_chunks = (corner_indices[1]|>diff).+1        
+        paths = map(1:(length(pathlist)-1)) do i 
+            chunk_path = hd_section_1d(RN,asd,mn,Npath_chunks[i],pathlist[[i,i+1]],args...;force=force)
+            split(chunk_path,"scripts/")[2]
+        end
+        tick_odimeters = [getindex.(Ref(odimeter[i]),corner_indices[i]) for i=1:length(corner_indices)]
+        kargs = (
+            frame   = :box,
+            grid    = :x,
+            label   = "",
+            xlims   = (0, 1),
+            yrotation=60,
+            gridalpha      = .5 ,
+            gridlinewidth  = 1,
+            gridstyle      = :dashdot,
+            xtickfonthalign =:center,
+            xticks         = (tick_odimeters[1]./max(odimeter[1]...), pathlist),
+            minorgrid      = false,
+            # apsectratio    = 1/4,
+            xguidefontsize = 16,
+            title_pos       = :right,
+            titlefontvalign = :bottom,
+        );
+        dict = Dict(
+            :args           => kargs,
+            :pathlist       => pathlist,
+            :ks             => ks,
+            :odimeter       => odimeter,
+            :corner_indices => corner_indices,
+            :chunks         => paths,
+            )
+        bson(path,Dict(
             :dict  => dict,
             :tag   => hds1d_tag(asd,mn,Npath,pathlist),
             :angle => SolidState.cθ(mn...)*180/π
-        )
+        ))
+        path
+    else
+        path
+    end
+end
+
+function chunk_compose(dict::AbstractDict)
+    Dict(
+        :args     => dict[:args],
+        :path     => dict[:pathlist],
+        :ks       => dict[:ks],
+        :odimeter => dict[:odimeter],
+        :Es       => vcat(
+            map(enumerate(dict[:chunks])) do (i,path)
+                if i == length(dict[:chunks])
+                    BSON.load("$(ENV["scriptdir"])/$path")[:dict][:Es]
+                else
+                    BSON.load("$(ENV["scriptdir"])/$path")[:dict][:Es][1:(end-1),:]
+                end
+            end...),
+        :Evs      => vcat(
+            map(enumerate(dict[:chunks])) do (i,path)
+                if i == length(dict[:chunks])
+                    BSON.load("$(ENV["scriptdir"])/$path")[:dict][:Evs]
+                else
+                    BSON.load("$(ENV["scriptdir"])/$path")[:dict][:Evs][1:(end-1)]
+                end
+            end...),
+        :corner_indices => dict[:corner_indices],
     )
-    "$(mkpath("$(ENV["scriptdir"])/out/$RN/"))/$(hds1d_tag(asd,mn,Npath,pathlist)).bson"
+end
+
+function chunk_compose(path::String)
+    chunk_compose(BSON.load(path)[:dict])
+end
+
+function chunk_compose(RN,asd,mn,Npath,pathlist)
+    path = "$(mkpath("$(ENV["scriptdir"])/out/$RN/"))/$(hds1d_tag(asd,mn,Npath,pathlist)).bson"
+    chunk_compose(path)
 end
 
 ######################################
@@ -492,26 +587,39 @@ end
 ######################################
 #### Calculating DataSections
 ######################################
-function section(RN, asd, mn, dtype, indices, priors, base, Neval, pool=default_worker_pool(), offset=(0.0,0.0), cachedir=ENV["cachedir"], scriptdir=ENV["scriptdir"])
-    println("Calculation Section for $asd $(mn[1])-$(mn[2])");flush(stdout)
+function section(RN, asd, mn, dtype, indices, priors, base, Neval, Nmax; pool=default_worker_pool(), offset=(0.0,0.0), cachedir=ENV["cachedir"], scriptdir=ENV["scriptdir"])
+    println("Calculating Section for $asd $(mn[1])-$(mn[2])");flush(stdout)
     models(asd,[mn])
     args = Dict(
         :asd=>asd,
         :mn => mn,
         :dtype => dtype,
         :N => Neval,
+        :Nmax => Nmax,
         :indices => indices,
         :priors => priors,
         :base => base,
         :cachedir => cachedir,
         :offset => offset,
+        :Λ0 => :box,
         )
 
     ds = DataSection(; args...)
     ds()
 
-    outdir = mkpath("$scriptdir/out/$RN")
-    data_export("$outdir/$asd-$(mn[1])-$(mn[2]).bson", ds);
+    # outdir = mkpath("$scriptdir/out/$RN")
+    # data_export("$outdir/$asd-$(mn[1])-$(mn[2])-$.bson", ds);
+    ds
+end
+
+function section(RN, asd, mn, chartinfo, pool=default_worker_pool(), offset=(0.0,0.0), cachedir=ENV["cachedir"], scriptdir=ENV["scriptdir"])
+    if !isfile("$(mkpath("$scriptdir/out/$RN"))/$asd-$(mn[1])-$(mn[2])-$(hash(chartinfo)).bson")
+        ds = section(RN, asd, mn, chartinfo...; pool=pool, offset=offset, cachedir=cachedir, scriptdir=scriptdir)
+        data_export("$(mkpath("$scriptdir/out/$RN"))/$asd-$(mn[1])-$(mn[2])-$(hash(chartinfo)).bson", ds);
+    else 
+        ds = data_import("$(mkpath("$scriptdir/out/$RN"))/$asd-$(mn[1])-$(mn[2])-$(hash(chartinfo)).bson")
+    end
+    ds
 end
 
 ######################################
@@ -594,8 +702,16 @@ end
 ###### Extraction Methods
 ###############################################################
 
+function load(RNname)
+    BSON.load("$(ENV["scriptdir"])/out/$RNname.bson")
+end
+
 function load(RN,name)
         BSON.load("$(ENV["scriptdir"])/out/$RN/$name.bson")
+end
+
+function extract(RNname,plotfunction,args;)
+    plotfunction(args...; BSON.load("$(ENV["scriptdir"])/out/$RNname.bson")...)
 end
 
 function extract(RN,name,plotfunction,args...;)
